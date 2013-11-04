@@ -1,3 +1,5 @@
+from __future__ import division, print_function
+
 import numpy as np
 from dipy.denoise.ornlm import upfir
 from dipy.denoise.wavelet.cshift3D import cshift3D
@@ -25,20 +27,26 @@ def sfb3D_A(lo, hi, sf, d):
     for k in xrange(N3):
         y[:, :, k] = (np.array(upfir(lo[:, :, k], lpf)) +
                       np.array(upfir(hi[:, :, k], hpf)))
+
     y[:(L - 2), :, :] = y[:(L - 2), :, :] + y[N:(N + L - 2), :, :]
     y = y[:N, :, :]
     y = cshift3D(y, 1 - L / 2, 0)
+
     # permute dimensions of y (inverse permutation)
-    q = permutationInverse(p)
+    q = reversed(p)
+    #q = permutationInverse(p)
     y = y.transpose(q)
     return y
 
 
 def sfb3D(lo, hi, sf1, sf2=None, sf3=None):
-    if sf2 == None:
+
+    if sf2 is None:
         sf2 = sf1
-    if sf3 == None:
+
+    if sf3 is None:
         sf3 = sf1
+
     LLL = lo
     LLH = hi[0]
     LHL = hi[1]
@@ -47,14 +55,18 @@ def sfb3D(lo, hi, sf1, sf2=None, sf3=None):
     HLH = hi[4]
     HHL = hi[5]
     HHH = hi[6]
+
     # filter along dimension 2
     LL = sfb3D_A(LLL, LLH, sf3, 2)
     LH = sfb3D_A(LHL, LHH, sf3, 2)
     HL = sfb3D_A(HLL, HLH, sf3, 2)
     HH = sfb3D_A(HHL, HHH, sf3, 2)
+
     # filter along dimension 1
     L = sfb3D_A(LL, LH, sf2, 1)
     H = sfb3D_A(HL, HH, sf2, 1)
+
     # filter along dimension 0
     y = sfb3D_A(L, H, sf1, 0)
+
     return y
