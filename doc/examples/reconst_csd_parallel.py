@@ -102,7 +102,7 @@ from dipy.data import get_sphere
 sphere = get_sphere('symmetric724')
 
 import time
-from dipy.reconst.odf import peaks_from_model
+from dipy.reconst.peaks import peaks_from_model
 
 
 start_time = time.time()
@@ -115,17 +115,16 @@ csd_peaks_parallel = peaks_from_model(model=csd_model,
                                       return_sh=True,
                                       return_odf=False,
                                       normalize_peaks=True,
-                                      ravel_peaks=False,
                                       npeaks=5,
                                       parallel=True,
-                                      nbr_process=None)  # default multiprocessing.cpu_count()
+                                      nbr_processes=None)  # default multiprocessing.cpu_count()
 
 time_parallel = time.time() - start_time
 print("peaks_from_model using " + str(multiprocessing.cpu_count())
       + " process ran in :" + str(time_parallel) + " seconds")
 
 """
-peaks_from_model using 8 process ran in :114.425682068 seconds
+peaks_from_model using 8 processes ran in :114.425682068 seconds
 """
 
 start_time = time.time()
@@ -138,10 +137,9 @@ csd_peaks = peaks_from_model(model=csd_model,
                              return_sh=True,
                              return_odf=False,
                              normalize_peaks=True,
-                             ravel_peaks=False,
                              npeaks=5,
                              parallel=False,
-                             nbr_process=None)
+                             nbr_processes=None)
 
 time_single = time.time() - start_time
 print("peaks_from_model ran in :" + str(time_single) + " seconds")
