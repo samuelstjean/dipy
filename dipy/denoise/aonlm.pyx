@@ -14,12 +14,15 @@ cdef double bessi0(double x):
     if(ax < 3.75):
         y = x / 3.75
         y *= y
-        ans = 1. + y * (3.5156229 + y * (3.0899424 + y * (1.2067492 + y * (0.2659732 + y * (0.360768e-1 + y * 0.45813e-2)))))
+        ans = 1. + y * \
+            (3.5156229 + y * (3.0899424 + y * (1.2067492 + y * (0.2659732 + y * (0.360768e-1 + y * 0.45813e-2)))))
     else:
         y = 3.75 / ax
         ans = np.exp(ax) / np.sqrt(ax)
-        a = y * (0.916281e-2 + y * (-0.2057706e-1 + y * (0.2635537e-1 + y * (-0.1647633e-1 + y * 0.392377e-2))))
-        ans *= (0.39894228 + y * (0.1328592e-1 + y * (0.225319e-2 + y * (-0.157565e-2 + a))))
+        a = y * \
+            (0.916281e-2 + y * (-0.2057706e-1 + y * (0.2635537e-1 + y * (-0.1647633e-1 + y * 0.392377e-2))))
+        ans *= (0.39894228 + y *
+                (0.1328592e-1 + y * (0.225319e-2 + y * (-0.157565e-2 + a))))
 
     return ans
 
@@ -33,11 +36,14 @@ cdef double bessi1(double x):
     if(ax < 3.75):
         y = x / 3.75
         y *= y
-        ans = ax * (0.5 + y * (0.87890594 + y * (0.51498869 + y * (0.15084934 + y * (0.2658733e-1 + y * (0.301532e-2 + y * 0.32411e-3))))))
+        ans = ax * \
+            (0.5 + y * (0.87890594 + y * (0.51498869 + y * (0.15084934 + y * (0.2658733e-1 + y * (0.301532e-2 + y * 0.32411e-3))))))
     else:
         y = 3.75 / ax
-        ans = 0.2282967e-1 + y * (-0.2895312e-1 + y * (0.1787654e-1 - y * 0.420059e-2))
-        ans = 0.39894228 + y * (-0.3988024e-1 + y * (-0.362018e-2 + y * (0.163801e-2 + y * (-0.1031555e-1 + y * ans))))
+        ans = 0.2282967e-1 + y * \
+            (-0.2895312e-1 + y * (0.1787654e-1 - y * 0.420059e-2))
+        ans = 0.39894228 + y * \
+            (-0.3988024e-1 + y * (-0.362018e-2 + y * (0.163801e-2 + y * (-0.1031555e-1 + y * ans))))
         ans *= np.exp(ax) / np.sqrt(ax)
 
     if(x < 0):
@@ -50,7 +56,7 @@ cdef double Epsi(double snr):
     cdef double val
     val = (2 + snr * snr - (pi / 8) * np.exp(-(snr * snr) / 2) * ((2 + snr * snr) * bessi0((snr * snr) / 4) +
           (snr * snr) * bessi1((snr * snr) / 4)) * ((2 + snr * snr) * bessi0((snr * snr) / 4) +
-          (snr * snr) * bessi1((snr * snr) / 4)))
+                                                    (snr * snr) * bessi1((snr * snr) / 4)))
 
     if (val < 0.001) or (val > 10):
         val = 1
@@ -75,21 +81,21 @@ cdef _average_block(double[:, :, :] ima, int x, int y, int z, double[:, :, :] av
                 pos = np.array((x + a, y + b, z + c) - neighborhoodsize)
                 is_outside = (pos < 0) | (pos > ima.shape)
 
-
                 #is_outside = 0
-                #if ((x_pos < 0) or (x_pos >= ima.shape[0])):
+                # if ((x_pos < 0) or (x_pos >= ima.shape[0])):
                 #    is_outside = 1
-                #if ((y_pos < 0) or (y_pos >= ima.shape[1])):
+                # if ((y_pos < 0) or (y_pos >= ima.shape[1])):
                 #    is_outside = 1
-                #if ((z_pos < 0) or (z_pos >= ima.shape[2])):
+                # if ((z_pos < 0) or (z_pos >= ima.shape[2])):
                 #    is_outside = 1
-
-    #### Code is almost the same? rician should take into account the bias with -2*sigma**2, right?
+    # Code is almost the same? rician should take into account the bias with
+    # -2*sigma**2, right?
                 if(rician == 1):
                     if (is_outside == 1):
                         average[a, b, c] += weight * (ima[x, y, z] ** 2)
                     else:
-                        average[a, b, c] += weight * (ima[x_pos, y_pos, z_pos] ** 2)
+                        average[a, b, c] += weight * \
+                            (ima[x_pos, y_pos, z_pos] ** 2)
                 else:
                     if (is_outside == 1):
                         average[a, b, c] += weight * (ima[x, y, z])
@@ -97,7 +103,8 @@ cdef _average_block(double[:, :, :] ima, int x, int y, int z, double[:, :, :] av
                         average[a, b, c] += weight * (ima[x_pos, y_pos, z_pos])
 
 
-cdef _value_block(double[:, :, :] estimate, double[:, :, :] Label, int x, int y, int z, double[:, :, :] average, double global_sum):
+cdef _value_block(double[:, :, :] estimate, double[:, :, :] Label,
+                  int x, int y, int z, double[:, :, :] average, double global_sum):
 
     cdef int is_outside, a, b, c, x_pos, y_pos, z_pos, count = 0
     cdef double value = 0.0
@@ -125,13 +132,15 @@ cdef _value_block(double[:, :, :] estimate, double[:, :, :] Label, int x, int y,
                 is_outside = (pos < 0) | (pos > ima.shape)
 
                 if (is_outside == 0):
-                    value = estimate[x_pos, y_pos, z_pos] + (average[a, b, c] / global_sum)
+                    value = estimate[
+                        x_pos, y_pos, z_pos] + (average[a, b, c] / global_sum)
                     label = Label[x_pos, y_pos, z_pos]
                     estimate[x_pos, y_pos, z_pos] = value
                     Label[x_pos, y_pos, z_pos] = label + 1
 
 
-cdef double _distance(double[:, :, :] image, int x, int y, int z, int nx, int ny, int nz, int f):
+cdef double _distance(double[:, :, :] image,
+                      int x, int y, int z, int nx, int ny, int nz, int f):
     '''
     Computes the distance between two square subpatches of image located at
     p and q, respectively. If the centered squares lie beyond the boundaries
@@ -146,28 +155,27 @@ cdef double _distance(double[:, :, :] image, int x, int y, int z, int nx, int ny
     x, y, z = np.abs(x + i), np.abs(y + i), np.abs(z + i)
     nx, ny, nz = np.abs(nx + i), np.abs(ny + i), np.abs(nz + i)
 
-    ## Look at numpy padding instead of hand-mirror padding
+    # Look at numpy padding instead of hand-mirror padding
     ## np.lib.pad(a, (2,3), 'symmetric')
 
-
-                if(ni1 >= sx):
-                    ni1 = 2 * sx - ni1 - 1
-                if(nj1 >= sy):
-                    nj1 = 2 * sy - nj1 - 1
-                if(nk1 >= sz):
-                    nk1 = 2 * sz - nk1 - 1
-                if(ni2 >= sx):
-                    ni2 = 2 * sx - ni2 - 1
-                if(nj2 >= sy):
-                    nj2 = 2 * sy - nj2 - 1
-                if(nk2 >= sz):
-                    nk2 = 2 * sz - nk2 - 1
-
+    if(ni1 >= sx):
+        ni1 = 2 * sx - ni1 - 1
+    if(nj1 >= sy):
+        nj1 = 2 * sy - nj1 - 1
+    if(nk1 >= sz):
+        nk1 = 2 * sz - nk1 - 1
+    if(ni2 >= sx):
+        ni2 = 2 * sx - ni2 - 1
+    if(nj2 >= sy):
+        nj2 = 2 * sy - nj2 - 1
+    if(nk2 >= sz):
+        nk2 = 2 * sz - nk2 - 1
 
     return np.mean((image[ni1, nj1, nk1] - image[ni2, nj2, nk2]) ** 2)
 
 
-cdef double _distance2(double[:, :, :] image, double[:, :, :] medias, int x, int y, int z, int nx, int ny, int nz, int f):
+cdef double _distance2(double[:, :, :] image, double[:, :, :] medias,
+                       int x, int y, int z, int nx, int ny, int nz, int f):
 
     cdef double d, acu, distancetotal
     cdef int i, j, k, ni1, nj1, ni2, nj2, nk1, nk2
@@ -213,7 +221,8 @@ cdef double _distance2(double[:, :, :] image, double[:, :, :] medias, int x, int
                 if(nk2 >= sz):
                     nk2 = 2 * sz - nk2 - 1
 
-                d = (image[ni1, nj1, nk1] - medias[ni1, nj1, nk1]) - (image[ni2, nj2, nk2] - medias[ni2, nj2, nk2])
+                d = (image[ni1, nj1, nk1] - medias[ni1, nj1, nk1]) - \
+                    (image[ni2, nj2, nk2] - medias[ni2, nj2, nk2])
                 distancetotal += d ** 2
                 acu = acu + 1
 
@@ -245,7 +254,6 @@ cdef void _regularize(double[:, :, :] imgIn, double[:, :, :] imgOut, int r):
                 for ii in range(-r, r + 1):
                     ni = np.abs(i + ii)
 
-
                     if(ni >= sx):
                         ni = 2 * sx - ni - 1
 
@@ -262,7 +270,7 @@ cdef void _regularize(double[:, :, :] imgIn, double[:, :, :] imgOut, int r):
         for j in range(sy):
             for i in range(sx):
 
-                if(imgOut[i, j, k] == 0):  # FIXME:shouldn't test for equality
+                if(np.abs(imgOut[i, j, k]) <= 10**-8):
                     continue
                 acu = 0
                 ind = 0
@@ -331,21 +339,21 @@ cdef _local_mean(double[:, :, :]ima, int x, int y, int z):
     #             pz = (-pz if pz < 0 else (2 * dims[2] - pz - 1 if pz >= dims[2] else pz))
     #             ss += ima[px, py, pz]
 
-    x = np.abs(2 * np.array(ima.shape[0]) - np.arange(x-1, x+2) - 1)
-    y = np.abs(2 * np.array(ima.shape[1]) - np.arange(y-1, y+2) - 1)
-    z = np.abs(2 * np.array(ima.shape[2]) - np.arange(z-1, z+2) - 1)
+    x = np.abs(2 * np.array(ima.shape[0]) - np.arange(x - 1, x + 2) - 1)
+    y = np.abs(2 * np.array(ima.shape[1]) - np.arange(y - 1, y + 2) - 1)
+    z = np.abs(2 * np.array(ima.shape[2]) - np.arange(z - 1, z + 2) - 1)
 
     return np.mean(ima[x, y, z])
 
-    ## Shouldn't that be neighborhood size, since 3*3*3 = 27?
-    #return ss / 27.0
+    # Shouldn't that be neighborhood size, since 3*3*3 = 27?
+    # return ss / 27.0
 
 
 cdef _local_variance(double[:, :, :] ima, double mean, int x, int y, int z):
 
-    x = np.abs(2 * np.array(ima.shape[0]) - np.arange(x-1, x+2) - 1)
-    y = np.abs(2 * np.array(ima.shape[1]) - np.arange(y-1, y+2) - 1)
-    z = np.abs(2 * np.array(ima.shape[2]) - np.arange(z-1, z+2) - 1)
+    x = np.abs(2 * np.array(ima.shape[0]) - np.arange(x - 1, x + 2) - 1)
+    y = np.abs(2 * np.array(ima.shape[1]) - np.arange(y - 1, y + 2) - 1)
+    z = np.abs(2 * np.array(ima.shape[2]) - np.arange(z - 1, z + 2) - 1)
 
     return np.var(ima[x, y, z], ddof=1)
 
@@ -422,8 +430,8 @@ cdef _upfir_vector(double[:] f, double[:] h, double[:] out):
 
 cdef _firdn_matrix(double[:, :] F, double[:] h, double[:, :] out):
 
-    #cdef int n = F.shape[0]
-    #cdef int m = F.shape[1]
+    # cdef int n = F.shape[0]
+    # cdef int m = F.shape[1]
     cdef int j
 
     for j in range(m):
@@ -432,8 +440,8 @@ cdef _firdn_matrix(double[:, :] F, double[:] h, double[:, :] out):
 
 cdef _upfir_matrix(double[:, :] F, double[:] h, double[:, :] out):
 
-    #cdef int n = F.shape[0]
-    #cdef int m = F.shape[1]
+    # cdef int n = F.shape[0]
+    # cdef int m = F.shape[1]
 
     for j in range(m):
         _upfir_vector(F[:, j], h, out[:, j])
@@ -499,11 +507,12 @@ def aonlm(double[:, :, :] ima, int v, int f, int rician):
         for i in range(cols):
             for j in range(rows):
 
-                #if(globalMax < ima[i, j, k]):
+                # if(globalMax < ima[i, j, k]):
                 #    globalMax = ima[i, j, k]
 
                 means[i, j, k] = _local_mean(ima, i, j, k)
-                variances[i, j, k] = _local_variance(ima, means[i, j, k], i, j, k)
+                variances[i, j, k] = _local_variance(
+                    ima, means[i, j, k], i, j, k)
 
     for k in range(0, slices, 2):
         for j in range(0, rows, 2):
@@ -517,7 +526,8 @@ def aonlm(double[:, :, :] ima, int v, int f, int rician):
                     wmax = 1.0
                     _average_block(ima, i, j, k, average, wmax, rician)
                     totalweight = totalweight + wmax
-                    _value_block(Estimate, Label, i, j, k, average, totalweight)
+                    _value_block(
+                        Estimate, Label, i, j, k, average, totalweight)
                 else:
                     # calculate minimum distance
                     for kk in range(-v, v + 1):
@@ -533,9 +543,12 @@ def aonlm(double[:, :, :] ima, int v, int f, int rician):
                                 if(ni >= 0 and nj >= 0 and nk >= 0 and ni < cols and nj < rows and nk < slices):
 
                                     if (ima[ni, nj, nk] > 0 and (means[ni, nj, nk]) > epsilon and (variances[ni, nj, nk] > epsilon)):
-                                        t1 = (means[i, j, k]) / (means[ni, nj, nk])
-                                        t1i = (globalMax - means[i, j, k]) / (globalMax - means[ni, nj, nk])
-                                        t2 = (variances[i, j, k]) / (variances[ni, nj, nk])
+                                        t1 = (
+                                            means[i, j, k]) / (means[ni, nj, nk])
+                                        t1i = (
+                                            globalMax - means[i, j, k]) / (globalMax - means[ni, nj, nk])
+                                        t2 = (
+                                            variances[i, j, k]) / (variances[ni, nj, nk])
 
                                         if((t1 > mu1 and t1 < (1 / mu1)) or (t1i > mu1 and t1i < (1 / mu1)) and t2 > var1 and t2 < (1 / var1)):
                                             d = _distance2(
@@ -619,7 +632,8 @@ def aonlm(double[:, :, :] ima, int v, int f, int rician):
 
                     Estimate[i, j, k] = Estimate[i, j, k] / Label[i, j, k]
                     if(rician):
-                        Estimate[i, j, k] = max(0, Estimate[i, j, k] - bias[i, j, k])
+                        Estimate[i, j, k] = max(
+                            0, Estimate[i, j, k] - bias[i, j, k])
                         fima[i, j, k] = np.sqrt(Estimate[i, j, k])
                     else:
                         fima[i, j, k] = Estimate[i, j, k]
