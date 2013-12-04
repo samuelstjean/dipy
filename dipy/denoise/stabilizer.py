@@ -9,11 +9,10 @@ import os
 import argparse
 #import hispeed
 
-from dipy.io.gradients import read_bvals_bvecs
-from dipy.denoise import piesno
-from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder
+#from dipy.io.gradients import read_bvals_bvecs
+from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
 
-from time import time
+#from time import time
 
 DESCRIPTION = """
     Convenient script to transform noisy rician/chi-squared signals into
@@ -68,7 +67,7 @@ def main():
 
     if args.savename is None:
         temp, ext = str.split(os.path.basename(args.input), '.', 1)
-        filename = os.path.dirname(os.path.realpath(args.input)) + '/' + temp
+        filename = os.path.dirname(os.path.realpath(args.input)) + '/' + temp + "_stabilized.nii.gz"
 
     else:
         filename = args.savename
@@ -84,16 +83,18 @@ def main():
     #tima=time()
 
     sigma = np.zeros(data.shape[-1])
-    eta = np.mean(data, axis=-1)
+    #eta = np.mean(data, axis=tuple(range(data.ndim-1)))
+    print(tuple(range(data.ndim)))
     data_stabilized = np.zeros_like(data)
 
     for idx in range(data.shape[-1]):
-
+        print("Now processing vol", idx, "out of", data.shape[-1])
         sigma[idx] = piesno(data[..., idx])
+        print(eta.shape)
+        print(eta[idx], eta.shape, data.shape)
         signal_intensity = fixed_point_finder(eta[idx], sigma[idx], N)
         print(sigma[idx], signal_intensity)
         data_stabilized[..., idx] = chi_to_gauss(data[..., idx], signal_intensity, sigma[idx], N)
-
 
     nib.save(nib.Nifti1Image(data_stabilized, affine, header), filename)
 

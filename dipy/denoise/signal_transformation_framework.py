@@ -2,13 +2,19 @@ from __future__ import division, print_function
 
 import numpy as np
 
-from scipy.special import erfinv, hyp1f1, iv
+from scipy.special import erfinv, hyp1f1, iv, gammainccinv
 from scipy.misc import factorial, factorial2
 from scipy.integrate import quad
 
 
 def _inv_cdf_gauss(y, eta, sigma):
     return eta + sigma * np.sqrt(2) * erfinv(2*y - 1)
+
+
+def _inv_nchi_cdf(N, K, alpha):
+    """Inverse CDF for the noncentral chi distribution
+    See [1]_ p.3 section 2.3"""
+    return gammainccinv(N * K, 1 - alpha) / K
 
 
 def _cdf_nchi(alpha, eta, sigma, N):
@@ -80,3 +86,98 @@ def fixed_point_finder(m, sigma, N, max_iter=500, eps=10**-10):
         return -t1
 
     return t1
+
+
+def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-10):
+    """
+    A routine for finding the underlying gaussian distribution standard
+    deviation from magnitude signals.
+
+    This is a reimplementation of [1]_ and the second step in the
+    stabilisation framework of [2]_.
+
+    Parameters
+    -----------
+
+    data : numpy array
+        The magnitude signals to analyses. The last dimension must contain the
+        same realisation of the volume, such as dMRI of fMRI data.
+
+    N : int, power of 2
+        The number of phase array coils of the mr scanner
+
+    alpha : float,
+        Probabilistic estimation threshold for the gamma function.
+
+    l : int
+        number of initial estimates for sigma to try
+
+    itermax : int
+        Maximum number of iterations to execute if convergence
+        is not reached.
+
+    eps : float,
+        Tolerance for the convergence criterion. Convergence is
+        reached if two subsequent estimates are smaller than eps.
+
+    References
+    ------------
+
+    .. [1]. Koay CG, Ozarslan E and Pierpaoli C.
+    "Probabilistic Identification and Estimation of Noise (PIESNO):
+    A self-consistent approach and its applications in MRI."
+    Journal of Magnetic Resonance 2009; 199: 94-103.
+
+    .. [2] Koay CG, Ozarslan E and Basser PJ.
+    "A signal transformational framework for breaking the noise floor
+    and its applications in MRI."
+    Journal of Magnetic Resonance 2009; 197: 108-119.
+    """
+
+    # Initial estimation of sigma
+    m = np.median(data)
+
+    phi = np.arange(1, l + 1) * m/l
+    K = data.shape[-1]
+    sum_m2 = np.sum(data**2, axis=-1)
+
+    sigma = np.zeros_like(phi)
+    denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, 1/2))
+
+    lambda_minus = _inv_nchi_cdf(N, K, alpha/2)
+    lambda_plus = _inv_nchi_cdf(N, K, 1 - alpha/2)
+
+    pos = 0
+    max_length_omega = 0
+
+    for num, sig in enumerate(phi):
+
+        sig_prev = 0
+        omega_size = 1
+
+        for n in range(itermax):
+
+            if np.abs(sig - sig_prev) < eps:
+                break
+
+            s = sum_m2 / (2*K*sig**2)
+            idx = np.logical_and(lambda_minus <= s, s <= lambda_plus)
+            omega = data[idx, :]
+
+            # If no point meets the criterion, exit
+            if omega.size == 0:
+                omega_size = 0
+                break
+
+            sig_prev = sig
+            sig = np.median(omega) / denom
+            omega_size = omega.size/K
+
+        # Remember the biggest omega array as giving the optimal
+        # sigma amongst all initial estimates from phi
+        if omega_size > max_length_omega:
+            pos, max_length_omega = num, omega_size
+
+        sigma[num] = sig
+
+    return sigma[pos]
