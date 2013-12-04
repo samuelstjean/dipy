@@ -6,8 +6,8 @@ import numpy as np
 from numpy.testing import assert_almost_equal
 from scipy.stats import norm
 
-from stabilizer import (_inv_cdf_gauss, chi_to_gauss, _xi,
-                        fixed_point_finder, _beta)
+from dipy.denoise.signal_transformation_framework import (_inv_cdf_gauss,
+     chi_to_gauss, _xi, fixed_point_finder, _beta)
 
 loc = np.random.randint(-10, 10)
 scale = np.random.rand()
@@ -27,3 +27,7 @@ assert_almost_equal(_xi(4, 1, 12), 0.697674262651006)
 # Values taken from hispeed.SignalFixedPointFinder.fixedPointFinder
 assert_almost_equal(fixed_point_finder(50, 30, 12), -192.78288201533618, decimal=10)
 assert_almost_equal(fixed_point_finder(650,45,1), 648.4366584016703, decimal=10)
+
+# Values taken from hispeed.DistributionalMapping.nonCentralChiToGaussian
+assert_almost_equal(chi_to_gauss(470, 600, 80, 12), 331.2511087335721)
+assert_almost_equal(chi_to_gauss(700, 600, 80, 1), 695.0548001366581)

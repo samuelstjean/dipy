@@ -7,12 +7,7 @@ import numpy as np
 
 import os
 import argparse
-import hispeed
-
-from scipy.special import erfinv, hyp1f1, iv
-from scipy.misc import factorial, factorial2
-from scipy.integrate import quad
-#from scipy.stats import chi
+#import hispeed
 
 from dipy.io.gradients import read_bvals_bvecs
 from dipy.denoise import piesno
@@ -54,104 +49,6 @@ def buildArgsParser():
     return p
 
 
-def _inv_cdf_gauss(y, eta, sigma):
-    return eta + sigma * np.sqrt(2) * erfinv(2*y - 1)
-
-
-def _gmarcumq(lbda, gamma, N):
-
-    def _integrand(s, lbda, N):
-        return s**N * np.exp(-.5 * (lbda**2 + s**2)) * iv(N-1, lbda*s)
-
-    return 1/(lbda**(N-1)) * quad(_integrand, gamma, np.inf, args=(lbda, N), limit=250)[0]
-
-
-def _cdf_nchi(alpha, eta, sigma, N):
-    #print(_gmarcumq(eta/sigma, alpha/sigma, N))
-    #return 1 - _gmarcumq(eta/sigma, alpha/sigma, N)
-    return quad(_pdf_nchi, 0, alpha, args=(eta, sigma, N), limit=250)[0]
-
-
-def _pdf_nchi(m, eta, sigma, N):
-    return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
-
-# def _pdf_nchi(x, k, lbda):
-#     return np.exp(-0.5*(x**2+lbda**2) * x**k * lbda) / ((lbda*x)**(0.5*k)) * iv(k/2-1, lbda*x)
-
-
-# def _cdf_nchi(x, lbda, k):
-#     return quad(_pdf_nchi, 0, x, args=(lbda, k))[0]
-
-
-def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
-
-    #cdf = chi(2*N, loc=eta, scale=sigma).cdf(np.array(m))
-    #cdf = chi.cdf(np.array(m), 2*N, loc=eta, scale=sigma)
-    vec_cdf_nchi = np.vectorize(_cdf_nchi)
-    cdf = vec_cdf_nchi(m, eta, sigma, N)
-
-    # Find outliers and clip them to confidence interval limits
-    np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
-    #x = _inv_cdf_gauss(cdf, eta, sigma)
-
-    #x[cdf < alpha/2] = outliers_value
-    #x[cdf > 1 - alpha/2] = outliers_value
-
-    return _inv_cdf_gauss(cdf, eta, sigma)
-
-
-def _beta(N):
-    return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
-
-
-def _xi(eta, sigma, N):
-    return 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
-
-
-def _fixed_point_g(eta, m, sigma, N):
-    return np.sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
-
-
-def _fixed_point_k(eta, m, sigma, N):
-
-    fpg = _fixed_point_g(eta, m, sigma, N)
-    num =  fpg * (fpg - eta)
-
-    denom = eta * (1 - ((_beta(N)**2)/(2*N)) *
-            hyp1f1(-0.5, N, -eta**2/(2*sigma**2)) *
-            hyp1f1(0.5, N+1, -eta**2/(2*sigma**2))) - fpg
-
-    return eta - num / denom
-
-
-def fixed_point_finder(m, sigma, N, max_iter=500, eps=10**-10):
-
-    delta = _beta(N) * sigma - m
-
-    if delta == 0:
-        return 0
-
-    if delta > 0:
-        m = _beta(N) * sigma + delta
-
-    t0 = m
-    t1 = _fixed_point_k(t0, m, sigma, N)
-    n_iter = 0
-
-    while(np.abs(t0 - t1) > eps):
-        t0 = t1
-        t1 = _fixed_point_k(t0, m, sigma, N)
-        n_iter += 1
-
-        if n_iter > max_iter:
-            break
-
-    if delta > 0:
-        return -t1
-
-    return t1
-
-
 def main():
 
     parser = buildArgsParser()
@@ -162,11 +59,11 @@ def main():
     header = vol.get_header()
     affine = vol.get_affine()
 
-    o_dtype = data.dtype
-    o_shape = data.shape
-    data = data.astype('float64')
-    data_stabilized = np.zeros_like(data)
-    bvals, _ = read_bvals_bvecs(args.bvals, None)
+    #o_dtype = data.dtype
+    #o_shape = data.shape
+    #data = data.astype('float64')
+    #data_stabilized = np.zeros_like(data)
+    #bvals, _ = read_bvals_bvecs(args.bvals, None)
 
     if args.savename is None:
         temp, ext = str.split(os.path.basename(args.input), '.', 1)
@@ -178,17 +75,17 @@ def main():
     N = args.N
 
     # Initialize Java VM
-    hispeed.initVM()
+    #hispeed.initVM()
 
     # Estimated noise standard deviation
     #sigma = np.zeros(data.shape[-1])
     print("Now running PIESNO...")
-    tima=time()
-    #sigma = piesno(data, l=50)
+    #tima=time()
+    sigma = piesno(data, l=50)
     sigma=14.438470881
     #sigma=[]
 
-    signal_avg = np.mean(data, axis=-1)
+    eta = np.mean(data, axis=-1)
 
     #for i in range(data.shape[3]):
     #    sigma += [piesno(data[:,:,i,:], l=50,N=1)]
@@ -203,9 +100,9 @@ def main():
     #alpha = 0.01
 
     # Constant for stabilizer
-    alpha = 0.0005
-    degree = 4
-    nknots = 5
+    #alpha = 0.0005
+    #degree = 4
+    #nknots = 5
 
     # data_flat = []
     # i, j = 0, 0
