@@ -9,9 +9,9 @@ from scipy.stats import norm
 from stabilizer import (_inv_cdf_gauss, chi_to_gauss, _xi,
                         fixed_point_finder, _beta)
 
-y = np.random.rand()
 loc = np.random.randint(-10, 10)
 scale = np.random.rand()
+y = np.random.rand() * scale + loc
 assert_almost_equal(_inv_cdf_gauss(norm.cdf(y, loc=loc, scale=scale), loc, scale), y, decimal=10)
 
 # Values taken from hispeed.SignalFixedPointFinder.beta
