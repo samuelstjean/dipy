@@ -34,8 +34,8 @@ def buildArgsParser():
     p.add_argument('input', action='store', metavar=' ',
                    help='Path of the image file to stabilize.')
 
-    p.add_argument('bvals', action='store', metavar=' ',
-                   help='Path of the bvals file, in FSL format.')
+    #p.add_argument('bvals', action='store', metavar=' ',
+    #               help='Path of the bvals file, in FSL format.')
 
     p.add_argument('-N', action='store', dest='N',
                    metavar=' ', required=False, default=12, type=int,
