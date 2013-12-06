@@ -34,11 +34,6 @@ def _pdf_nchi(m, eta, sigma, N):
     return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
 
 
-class ncx(stats.rv_continuous):
-    def _pdf(self, m, eta, sigma, N):
-        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
-
-
 def _beta(N):
     return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
 
@@ -78,13 +73,19 @@ def _marcumq(lbda, gamma, N):
 
 
 #vec_cdf_nchi = np.vectorize(_cdf_nchi, otypes=["float64"], cache=True)
+class ncx(stats.rv_continuous):
+    def _pdf(self, m, eta, sigma, N):
+        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
+
 
 
 def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
 
     #vec_cdf_nchi = np.vectorize(_cdf_nchi)
     #cdf = vec_cdf_nchi(m, eta, sigma, N)
-    cdf = _cdf_nchi(m, eta, sigma, N)
+    #cdf = _cdf_nchi(m, eta, sigma, N)
+    cdf = ncx(name="noncentral chi", a=0).cdf(m, eta, sigma, N)
+    #print(cdf, type(cdf))
     # Find outliers and clip them to confidence interval limits
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
     #if cdf < alpha/2:

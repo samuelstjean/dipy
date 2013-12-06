@@ -196,12 +196,12 @@ axis.
 """
 
 # Exclude null bvecs from the search
-idx = np.sum(tenmodel.bvec, axis=-1) == 0
-tenmodel.bvec[idx] = np.inf
+idx = np.sum(gtab.bvecs, axis=-1) == 0
+gtab.bvecs[idx] = np.inf
 
-axis_X = np.argmin(np.sum((tenmodel.bvec-np.array([1, 0, 0]))**2, axis=-1))
-axis_Y = np.argmin(np.sum((tenmodel.bvec-np.array([0, 1, 0]))**2, axis=-1))
-axis_Z = np.argmin(np.sum((tenmodel.bvec-np.array([0, 0, 1]))**2, axis=-1))
+axis_X = np.argmin(np.sum((gtab.bvecs-np.array([1, 0, 0]))**2, axis=-1))
+axis_Y = np.argmin(np.sum((gtab.bvecs-np.array([0, 1, 0]))**2, axis=-1))
+axis_Z = np.argmin(np.sum((gtab.bvecs-np.array([0, 0, 1]))**2, axis=-1))
 
 """Now that we have the closest b-vectors to each of the cartesian axis,
 let's compute their respective SNR and compare them to a b0 image's SNR.
