@@ -11,6 +11,7 @@ import argparse
 
 #from dipy.io.gradients import read_bvals_bvecs
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
+from dipy.core.ndindex import ndindex
 
 #from time import time
 
@@ -82,19 +83,45 @@ def main():
     print("Now running PIESNO...")
     #tima=time()
 
-    sigma = np.zeros(data.shape[-1])
-    #eta = np.mean(data, axis=tuple(range(data.ndim-1)))
-    print(tuple(range(data.ndim)))
-    data_stabilized = np.zeros_like(data)
+    #data = data[..., 2:]
 
-    for idx in range(data.shape[-1]):
-        print("Now processing vol", idx, "out of", data.shape[-1])
-        sigma[idx] = piesno(data[..., idx])
-        print(eta.shape)
-        print(eta[idx], eta.shape, data.shape)
-        signal_intensity = fixed_point_finder(eta[idx], sigma[idx], N)
-        print(sigma[idx], signal_intensity)
-        data_stabilized[..., idx] = chi_to_gauss(data[..., idx], signal_intensity, sigma[idx], N)
+    #min_slice = data.shape[-2]//4
+    sigma = np.zeros(data.shape[-2])
+    eta = np.zeros(data.shape[-2])
+    #N=1
+    #sigma = []
+    #eta = []
+    #eta = np.mean(data, axis=tuple(range(data.ndim-1)))
+    #print(tuple(range(data.ndim)))
+    data_stabilized = np.zeros_like(data, dtype=np.float64)
+    mean_slice = np.mean(data.swapaxes(-1, -2), axis=tuple(range(data.ndim-1)))
+    print(mean_slice.shape)
+
+    for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice):
+        print("Now processing slice", idx+1, "out of", data.shape[-2])
+        sigma[idx] = piesno(data[..., idx, :],  N)
+        #print(mean_slice[idx], sigma[idx], N)
+        eta[idx] = fixed_point_finder(mean_slice[idx], sigma[idx], N)
+        #signal_intensity = fixed_point_finder(np.mean(data[..., idx, :]), sigma[idx], N)
+        #print(sigma[idx], signal_intensity, np.mean(data[..., idx, :]), np.median(data[..., idx, :]), np.mean(data), np.median(data))
+
+    for idx in range(data.shape[-2]):
+        print(idx)
+        #print(chi_to_gauss(data[..., idx, :], eta[idx], sigma[idx], N))
+        data_stabilized[..., idx, :] = chi_to_gauss(data[..., idx, :], eta[idx], sigma[idx], N)
+
+    #print(np.median(sigma), np.mean(sigma))
+    #sigma = np.median(sigma)
+    #signal_intensity = fixed_point_finder(np.mean(data), sigma, N)
+    #print(signal_intensity, np.mean(data))
+
+        #sigma[idx] = 20
+        #print(eta.shape)
+        #print(eta[idx], eta.shape, data.shape)
+        #signal_intensity = fixed_point_finder(eta[idx], sigma[idx], N)
+        #signal_intensity = 120
+        #print(sigma[idx], signal_intensity)
+        #data_stabilized[..., idx] = chi_to_gauss(data[..., idx], signal_intensity, sigma[idx], N)
 
     nib.save(nib.Nifti1Image(data_stabilized, affine, header), filename)
 

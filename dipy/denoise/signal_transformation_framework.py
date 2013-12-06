@@ -4,7 +4,8 @@ import numpy as np
 
 from scipy.special import erfinv, hyp1f1, iv, gammainccinv
 from scipy.misc import factorial, factorial2
-from scipy.integrate import quad
+from scipy.integrate import quad, romberg, romb
+from scipy import stats
 
 
 def _inv_cdf_gauss(y, eta, sigma):
@@ -18,11 +19,24 @@ def _inv_nchi_cdf(N, K, alpha):
 
 
 def _cdf_nchi(alpha, eta, sigma, N):
-    return quad(_pdf_nchi, 0, alpha, args=(eta, sigma, N), limit=250)[0]
 
+    #return 1 - _marcumq(eta/sigma, alpha/sigma, N)
+    #print(alpha.shape,eta.shape,sigma.shape)
+    out = np.zeros_like(alpha)
+    for idx in range(alpha.size):
+        out[idx] = romberg(_pdf_nchi, 0, alpha[idx], args=(eta, sigma, N))
+    return out
+    #return romberg(_pdf_nchi, 0, alpha, args=(eta, sigma, N))#[0]#, limit=250)[0]
+    #sample = np.linspace(0, alpha)
+    #return romb(y)
 
 def _pdf_nchi(m, eta, sigma, N):
     return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
+
+
+class ncx(stats.rv_continuous):
+    def _pdf(self, m, eta, sigma, N):
+        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
 
 
 def _beta(N):
@@ -49,13 +63,35 @@ def _fixed_point_k(eta, m, sigma, N):
     return eta - num / denom
 
 
+def _marcumq(lbda, gamma, N):
+
+    def _integrand(s, lbda, N):
+        return s**N * np.exp(-0.5*(lbda**2 + s**2)) * iv(N-1, lbda*s)
+
+    #k = np.arange(N-1, 10**8)
+    #inf_sum = np.sum( (lbda/gamma)**k * iv(k, lbda*gamma)  )
+    #return np.exp(-0.5 * (lbda**2 + gamma**2)) * inf_sum
+    #print(gamma.shape)
+    #print(romberg(_integrand, gamma, 10**100, args=(lbda, N), vec_func=True))
+    return 1/(lbda**(N-1)) * romberg(_integrand, gamma, 10.**100, args=(lbda, N), vec_func=True)#[0]
+    #return 1/(lbda**(N-1)) * romb(_integrand(np.linspace(gamma, 25, 1000), lbda, N), dx=)
+
+
+#vec_cdf_nchi = np.vectorize(_cdf_nchi, otypes=["float64"], cache=True)
+
+
 def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
 
-    vec_cdf_nchi = np.vectorize(_cdf_nchi)
-    cdf = vec_cdf_nchi(m, eta, sigma, N)
-
+    #vec_cdf_nchi = np.vectorize(_cdf_nchi)
+    #cdf = vec_cdf_nchi(m, eta, sigma, N)
+    cdf = _cdf_nchi(m, eta, sigma, N)
     # Find outliers and clip them to confidence interval limits
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
+    #if cdf < alpha/2:
+    #    cdf = alpha/2
+
+    #if cdf > 1 - alpha/2:
+    #    cdf = 1 - alpha/2
 
     return _inv_cdf_gauss(cdf, eta, sigma)
 
@@ -100,13 +136,13 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-10):
     -----------
 
     data : numpy array
-        The magnitude signals to analyses. The last dimension must contain the
-        same realisation of the volume, such as dMRI of fMRI data.
+        The magnitude signals to analyse. The last dimension must contain the
+        same realisation of the volume, such as dMRI or fMRI data.
 
-    N : int, power of 2
+    N : int
         The number of phase array coils of the mr scanner
 
-    alpha : float,
+    alpha : float
         Probabilistic estimation threshold for the gamma function.
 
     l : int
@@ -116,7 +152,7 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-10):
         Maximum number of iterations to execute if convergence
         is not reached.
 
-    eps : float,
+    eps : float
         Tolerance for the convergence criterion. Convergence is
         reached if two subsequent estimates are smaller than eps.
 
