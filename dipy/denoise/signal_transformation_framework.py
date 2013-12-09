@@ -58,11 +58,75 @@ def _fixed_point_k(eta, m, sigma, N):
     return eta - num / denom
 
 
-def _marcumq(lbda, gamma, N):
+#def _marcumq(lbda, gamma, N):
+def _marcumq(a, b, M, eps=10**-10):
+    #def _integrand(s, lbda, N):
+    #    return s**N * np.exp(-0.5*(lbda**2 + s**2)) * iv(N-1, lbda*s)
 
-    def _integrand(s, lbda, N):
-        return s**N * np.exp(-0.5*(lbda**2 + s**2)) * iv(N-1, lbda*s)
+    if b==0:
+        return 1
 
+    if a==0:
+        #Q = np.exp(-.5*b**2)
+        #temp = 0
+
+        k = np.arange(M)
+        Q = np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
+
+        #for k in range(M-1):
+        #    temp += np.sum(b**(2*k) / (2**k * factorial(k)))
+
+        return Q #* temp
+
+    k = M
+    z = a * b
+    t = 1
+    k = 0
+
+    if a < b:
+
+        s = 1
+        c = 0
+        x = a/b
+        d = x
+        S = iv(0, z) * np.exp(-z)
+
+        for k in range(1, M):
+            t = (d + 1/d) * iv(k, z) * np.exp(-z)
+            S = S + t
+            d = d * x
+
+        N = k+1
+        k += 1
+
+    else:
+        s = -1
+        c = 1
+        x = b/a
+        k = M
+        d = x**M
+        S = 0
+        N = 0
+
+    t = d * iv(np.abs(k), z) * np.exp(-z)
+    S = S + t
+    d = d * x
+    N = k + 1
+    k += 1
+
+    condition = np.abs(t/S) > eps
+
+    while (condition):
+
+        t = d * iv(np.abs(k), z) * np.exp(-z)
+        S = S + t
+        d = d * x
+        N = k + 1
+        k += 1
+
+        condition = np.abs(t/S) > eps
+
+    return c + s * np.exp(-0.5 * (a-b)**2) * S
     #k = np.arange(N-1, 10**8)
     #inf_sum = np.sum( (lbda/gamma)**k * iv(k, lbda*gamma)  )
     #return np.exp(-0.5 * (lbda**2 + gamma**2)) * inf_sum
@@ -84,8 +148,10 @@ def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
     #vec_cdf_nchi = np.vectorize(_cdf_nchi)
     #cdf = vec_cdf_nchi(m, eta, sigma, N)
     #cdf = _cdf_nchi(m, eta, sigma, N)
-    cdf = ncx(name="noncentral chi", a=0).cdf(m, eta, sigma, N)
+    #cdf = ncx(name="noncentral chi", a=0).cdf(m, eta, sigma, N)
+    #cdf = stats.ncx2.cdf(m, N, eta)
     #print(cdf, type(cdf))
+    cdf = 1 - _marcumq(eta/sigma, m/sigma, N)
     # Find outliers and clip them to confidence interval limits
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
     #if cdf < alpha/2:
