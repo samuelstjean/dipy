@@ -7,7 +7,7 @@ from numpy.testing import assert_almost_equal
 from scipy.stats import norm
 
 from dipy.denoise.signal_transformation_framework import (_inv_cdf_gauss,
-     chi_to_gauss, _xi, fixed_point_finder, _beta)
+     chi_to_gauss, _xi, fixed_point_finder, _beta, _marcumq)
 
 loc = np.random.randint(-10, 10)
 scale = np.random.rand()
@@ -29,5 +29,11 @@ assert_almost_equal(fixed_point_finder(50, 30, 12), -192.78288201533618, decimal
 assert_almost_equal(fixed_point_finder(650,45,1), 648.4366584016703, decimal=10)
 
 # Values taken from hispeed.DistributionalMapping.nonCentralChiToGaussian
-assert_almost_equal(chi_to_gauss(470, 600, 80, 12), 331.2511087335721)
-assert_almost_equal(chi_to_gauss(700, 600, 80, 1), 695.0548001366581)
+assert_almost_equal(chi_to_gauss(np.array([470]), 600, 80, 12), 331.2511087335721)
+assert_almost_equal(chi_to_gauss(np.array([700]), 600, 80, 1), 695.0548001366581)
+
+# Values taken from octave
+assert_almost_equal(_marcumq(7, 3, 5),  0.999999658508735)
+assert_almost_equal(_marcumq(3, 7, 5),  0.00115139503866225)
+assert_almost_equal(_marcumq(0, 7, 5),  4.07324330517049e-07)
+assert_almost_equal(_marcumq(7, 0, 5),  1.)

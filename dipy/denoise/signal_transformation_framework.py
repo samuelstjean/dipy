@@ -7,6 +7,8 @@ from scipy.misc import factorial, factorial2
 from scipy.integrate import quad, romberg, romb
 from scipy import stats
 
+from dipy.ndindex import ndindex
+
 
 def _inv_cdf_gauss(y, eta, sigma):
     return eta + sigma * np.sqrt(2) * erfinv(2*y - 1)
@@ -63,6 +65,8 @@ def _marcumq(a, b, M, eps=10**-10):
     #def _integrand(s, lbda, N):
     #    return s**N * np.exp(-0.5*(lbda**2 + s**2)) * iv(N-1, lbda*s)
 
+
+
     if b==0:
         return 1
 
@@ -71,16 +75,16 @@ def _marcumq(a, b, M, eps=10**-10):
         #temp = 0
 
         k = np.arange(M)
-        Q = np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
+        #Q = np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
 
         #for k in range(M-1):
         #    temp += np.sum(b**(2*k) / (2**k * factorial(k)))
 
-        return Q #* temp
+        return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
 
-    k = M
+    #k = M
     z = a * b
-    t = 1
+    #t = 1
     k = 0
 
     if a < b:
@@ -93,10 +97,11 @@ def _marcumq(a, b, M, eps=10**-10):
 
         for k in range(1, M):
             t = (d + 1/d) * iv(k, z) * np.exp(-z)
-            S = S + t
-            d = d * x
+            S += t
+            #S += (d + 1/d) * iv(k, z) * np.exp(-z)
+            d *= x
 
-        N = k+1
+        #N = k+1
         k += 1
 
     else:
@@ -106,25 +111,28 @@ def _marcumq(a, b, M, eps=10**-10):
         k = M
         d = x**M
         S = 0
-        N = 0
+        t = 1
+        #N = 0
 
-    t = d * iv(np.abs(k), z) * np.exp(-z)
-    S = S + t
-    d = d * x
-    N = k + 1
-    k += 1
+    #t = d * iv(np.abs(k), z) * np.exp(-z)
+    #S += t
+    #d *= x
+    #N = k + 1
+    #k += 1
 
-    condition = np.abs(t/S) > eps
+    condition = True
+    #first = True
 
     while (condition):
 
         t = d * iv(np.abs(k), z) * np.exp(-z)
-        S = S + t
-        d = d * x
-        N = k + 1
+        S += t
+        d *= x
+        #N = k + 1
         k += 1
 
         condition = np.abs(t/S) > eps
+        #first = False
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
     #k = np.arange(N-1, 10**8)
@@ -132,7 +140,7 @@ def _marcumq(a, b, M, eps=10**-10):
     #return np.exp(-0.5 * (lbda**2 + gamma**2)) * inf_sum
     #print(gamma.shape)
     #print(romberg(_integrand, gamma, 10**100, args=(lbda, N), vec_func=True))
-    return 1/(lbda**(N-1)) * romberg(_integrand, gamma, 10.**100, args=(lbda, N), vec_func=True)#[0]
+    #return 1/(lbda**(N-1)) * romberg(_integrand, gamma, 10.**100, args=(lbda, N), vec_func=True)#[0]
     #return 1/(lbda**(N-1)) * romb(_integrand(np.linspace(gamma, 25, 1000), lbda, N), dx=)
 
 
@@ -151,7 +159,13 @@ def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
     #cdf = ncx(name="noncentral chi", a=0).cdf(m, eta, sigma, N)
     #cdf = stats.ncx2.cdf(m, N, eta)
     #print(cdf, type(cdf))
-    cdf = 1 - _marcumq(eta/sigma, m/sigma, N)
+    #vec_marcumq = np.vectorize(_marcumq)
+    from marcum import _marcumq
+    #cdf = 1 - vec_marcumq(eta/sigma, m/sigma, N)
+    cdf = np.zeros_like(m)
+
+    for idx in ndindex(m.shape):
+        cdf[idx] = _marcumq(eta/sigma, m[idx]/sigma, N)
     # Find outliers and clip them to confidence interval limits
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
     #if cdf < alpha/2:

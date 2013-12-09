@@ -11,7 +11,7 @@ import argparse
 
 #from dipy.io.gradients import read_bvals_bvecs
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
-from dipy.core.ndindex import ndindex
+#from dipy.core.ndindex import ndindex
 
 #from time import time
 
