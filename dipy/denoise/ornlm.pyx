@@ -130,10 +130,10 @@ def _value_block(double[:, :, :] estimate, double[:, :, :] Label, int x, int y,
 def _distance(double[:, :, :] image, int x, int y, int z,
               int nx, int ny, int nz, int f):
     '''
-    Computes the distance between two square subpatches of image located at
-    p and q, respectively. If the centered squares lie beyond the boundaries
-    of image, they are mirrored.
-    '''
+Computes the distance between two square subpatches of image located at
+p and q, respectively. If the centered squares lie beyond the boundaries
+of image, they are mirrored.
+'''
     cdef double d, acu, distancetotal
     cdef int i, j, k, ni1, nj1, ni2, nj2, nk1, nk2
     cdef int sx = image.shape[1], sy = image.shape[0], sz = image.shape[2]
@@ -189,12 +189,12 @@ def _local_mean(double[:, :, :]ima, int x, int y, int z):
     for px in range(x - 1, x + 2):
         for py in range(y - 1, y + 2):
             for pz in range(z - 1, z + 2):
-                px = (
-                    -px if px < 0 else (2 * dims[0] - px - 1 if px >= dims[0] else px))
-                py = (
-                    -py if py < 0 else (2 * dims[1] - py - 1 if py >= dims[1] else py))
-                pz = (
-                    -pz if pz < 0 else (2 * dims[2] - pz - 1 if pz >= dims[2] else pz))
+                px = (-px if px < 0 else (
+                    2 * dims[0] - px - 1 if px >= dims[0] else px))
+                py = (-py if py < 0 else (
+                    2 * dims[1] - py - 1 if py >= dims[1] else py))
+                pz = (-pz if pz < 0 else (
+                    2 * dims[2] - pz - 1 if pz >= dims[2] else pz))
                 ss += ima[px, py, pz]
     return ss / 27.0
 
@@ -218,14 +218,14 @@ def _local_variance(double[:, :, :] ima, double mean, int x, int y, int z):
 
 cpdef firdn(double[:, :] image, double[:] h):
     '''
-    Applies the filter given by the convolution kernel 'h' columnwise to
-    'image', then subsamples by 2. This is a special case of the matlab's
-    'upfirdn' function, ported to python. Returns the filtered image.
-    Parameters
-    ----------
-        image:  the input image to be filtered
-        h:      the convolution kernel
-    '''
+Applies the filter given by the convolution kernel 'h' columnwise to
+'image', then subsamples by 2. This is a special case of the matlab's
+'upfirdn' function, ported to python. Returns the filtered image.
+Parameters
+----------
+image: the input image to be filtered
+h: the convolution kernel
+'''
     nrows = image.shape[0]
     ncols = image.shape[1]
     ll = h.shape[0]
@@ -235,14 +235,14 @@ cpdef firdn(double[:, :] image, double[:] h):
 
 cpdef upfir(double[:, :] image, double[:] h):
     '''
-    Upsamples the columns of the input image by 2, then applies the
-    convolution kernel 'h' (again, columnwise). This is a special case of the
-    matlab's 'upfirdn' function, ported to python. Returns the filtered image.
-    Parameters
-    ----------
-        image:  the input image to be filtered
-        h:      the convolution kernel
-    '''
+Upsamples the columns of the input image by 2, then applies the
+convolution kernel 'h' (again, columnwise). This is a special case of the
+matlab's 'upfirdn' function, ported to python. Returns the filtered image.
+Parameters
+----------
+image: the input image to be filtered
+h: the convolution kernel
+'''
     nrows = image.shape[0]
     ncols = image.shape[1]
     ll = h.shape[0]
@@ -253,21 +253,32 @@ cpdef upfir(double[:, :] image, double[:] h):
 
 def ornlm(double[:, :, :]image, int v, int f, double h):
     '''
-    Filters the given 3D image using optimized non-local means, proposed by
-    P. Coupe et al. Returns the filtered image.
-    Parameters
-    ----------
-        image: the input image, corrupted with rician noise
-        v:  similar patches in the non-local means are searched for locally,
-            inside a cube of side 2*v+1 centered at each voxel of interest.
-        f:  the size of the block to be used (2*f+1)x(2*f+1)x(2*f+1) in the
-            blockwise non-local means implementation (the Coupe's proposal).
-        h:  the estimated amount of rician noise in the input image: in P.
-            Coupe et al. the rician noise was simulated as
-            sqrt((f+x)^2 + (y)^2) where f is the pixel value and x and y are
-            independent realizations of a random variable with Normal
-            distribution, with mean=0 and standard deviation=h
-    '''
+Filters the given 3D image using optimized non-local means, proposed by
+P. Coupe et al. Returns the filtered image.
+Parameters
+----------
+image: the input image, corrupted with rician noise
+
+v: similar patches in the non-local means are searched for locally,
+inside a cube of side 2*v+1 centered at each voxel of interest.
+
+f: the size of the block to be used (2*f+1)x(2*f+1)x(2*f+1) in the
+blockwise non-local means implementation (the Coupe's proposal).
+
+h: the estimated amount of rician noise in the input image: in P.
+Coupe et al. the rician noise was simulated as
+sqrt((f+x)^2 + (y)^2) where f is the pixel value and x and y are
+independent realizations of a random variable with Normal
+distribution, with mean=0 and standard deviation=h
+
+
+Sam : Seems like this doesn't support the rician bias correction. We can
+easily add it in, but I don't know if it will break the function definition
+or whatnot. See lines 349/351 and remove 2*h**2 from estimates to correct
+the bias. np.sqrt from the result, clipping to zero. And the code doesn't seem
+to give a way to estimate h, so we can use the background trick like the SNR
+computation or something like piesno also.
+'''
     cdef int[:] dims = cvarray((3,), itemsize=sizeof(int), format="i")
     dims[0] = image.shape[0]
     dims[1] = image.shape[1]
@@ -330,7 +341,7 @@ def ornlm(double[:, :, :]image, int v, int f, double h):
                                     _average_block(
                                         image, ni, nj, nk, average, w)
                                     totalWeight += w
-                    if(wmax == 0.0):  # FIXME
+                    if(np.abs(wmax) < 10**-8):
                         wmax = 1.0
                     _average_block(image, i, j, k, average, wmax)
                     totalWeight += wmax
