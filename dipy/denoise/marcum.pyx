@@ -1,7 +1,8 @@
 from __future__ import division
 import numpy as np
 
-from scipy.special import iv, factorial
+from scipy.special import iv
+from scipy.misc import factorial
 
 cimport numpy as np
 cimport cython
@@ -9,7 +10,7 @@ cimport cython
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def _marcumq(float a, float b, int M, float eps=10**-10):
+def _marcumq(double a, double b, int M, double eps=10**-10):
 
     if b == 0:
         return 1
@@ -19,14 +20,14 @@ def _marcumq(float a, float b, int M, float eps=10**-10):
     if a == 0:
         return np.exp(-b**2/2) * np.sum(b**(2*ka) / (2**ka * factorial(ka)))
 
-    cdef float z = a * b
+    cdef double z = a * b
     cdef int k
     cdef int s
     cdef int c
-    cdef float x
-    cdef float d
-    cdef float S
-    cdef float t
+    cdef double x
+    cdef double d
+    cdef double S
+    cdef double t
 
     if a < b:
 

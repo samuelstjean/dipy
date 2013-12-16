@@ -7,7 +7,7 @@ from scipy.misc import factorial, factorial2
 from scipy.integrate import quad, romberg, romb
 from scipy import stats
 
-from dipy.ndindex import ndindex
+from dipy.core.ndindex import ndindex
 
 
 def _inv_cdf_gauss(y, eta, sigma):
@@ -65,20 +65,18 @@ def _marcumq(a, b, M, eps=10**-10):
     #def _integrand(s, lbda, N):
     #    return s**N * np.exp(-0.5*(lbda**2 + s**2)) * iv(N-1, lbda*s)
 
-
-
-    if b==0:
+    if np.all(b == 0):
         return 1
 
-    if a==0:
-        #Q = np.exp(-.5*b**2)
-        #temp = 0
+    if a == 0:
+    #     #Q = np.exp(-.5*b**2)
+    #     #temp = 0
 
         k = np.arange(M)
-        #Q = np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
+    #     #Q = np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
 
-        #for k in range(M-1):
-        #    temp += np.sum(b**(2*k) / (2**k * factorial(k)))
+    #     #for k in range(M-1):
+    #     #    temp += np.sum(b**(2*k) / (2**k * factorial(k)))
 
         return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
 
@@ -87,7 +85,7 @@ def _marcumq(a, b, M, eps=10**-10):
     #t = 1
     k = 0
 
-    if a < b:
+    if np.all(a < b):
 
         s = 1
         c = 0
@@ -123,7 +121,7 @@ def _marcumq(a, b, M, eps=10**-10):
     condition = True
     #first = True
 
-    while (condition):
+    while np.all(condition):
 
         t = d * iv(np.abs(k), z) * np.exp(-z)
         S += t
@@ -160,12 +158,15 @@ def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
     #cdf = stats.ncx2.cdf(m, N, eta)
     #print(cdf, type(cdf))
     #vec_marcumq = np.vectorize(_marcumq)
-    from marcum import _marcumq
+    #from marcum import _marcumq
     #cdf = 1 - vec_marcumq(eta/sigma, m/sigma, N)
     cdf = np.zeros_like(m)
 
-    for idx in ndindex(m.shape):
+    for idx in [eta < m, eta >= m, m == 0, eta == 0]:
         cdf[idx] = _marcumq(eta/sigma, m[idx]/sigma, N)
+
+    #for idx in ndindex(m.shape):
+    #    cdf[idx] = _marcumq(eta/sigma, m[idx]/sigma, N)
     # Find outliers and clip them to confidence interval limits
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
     #if cdf < alpha/2:
