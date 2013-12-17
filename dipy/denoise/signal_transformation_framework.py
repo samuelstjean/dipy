@@ -4,10 +4,10 @@ import numpy as np
 
 from scipy.special import erfinv, hyp1f1, iv, gammainccinv
 from scipy.misc import factorial, factorial2
-from scipy.integrate import quad, romberg, romb
+#from scipy.integrate import quad, romberg, romb
 from scipy import stats
 
-from dipy.core.ndindex import ndindex
+#from dipy.core.ndindex import ndindex
 
 
 def _inv_cdf_gauss(y, eta, sigma):
@@ -61,14 +61,14 @@ def _fixed_point_k(eta, m, sigma, N):
 
 
 #def _marcumq(lbda, gamma, N):
-def _marcumq(a, b, M, eps=10**-10):
+def _marcumq(a, b, M, eps=10**-16):
     #def _integrand(s, lbda, N):
     #    return s**N * np.exp(-0.5*(lbda**2 + s**2)) * iv(N-1, lbda*s)
 
     if np.all(b == 0):
-        return 1
+        return np.ones_like(b)
 
-    if a == 0:
+    if np.all(a == 0):
     #     #Q = np.exp(-.5*b**2)
     #     #temp = 0
 
@@ -91,10 +91,11 @@ def _marcumq(a, b, M, eps=10**-10):
         c = 0
         x = a/b
         d = x
-        S = iv(0, z) * np.exp(-z)
+        expz = np.exp(-z)
+        S = iv(0, z) * expz
 
         for k in range(1, M):
-            t = (d + 1/d) * iv(k, z) * np.exp(-z)
+            t = (d + 1/d) * iv(k, z) * expz
             S += t
             #S += (d + 1/d) * iv(k, z) * np.exp(-z)
             d *= x
@@ -123,7 +124,7 @@ def _marcumq(a, b, M, eps=10**-10):
 
     while np.all(condition):
 
-        t = d * iv(np.abs(k), z) * np.exp(-z)
+        t = d * iv(k, z) * expz
         S += t
         d *= x
         #N = k + 1
@@ -160,15 +161,21 @@ def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
     #vec_marcumq = np.vectorize(_marcumq)
     #from marcum import _marcumq
     #cdf = 1 - vec_marcumq(eta/sigma, m/sigma, N)
-    cdf = np.zeros_like(m)
+    cdf = np.zeros_like(m, dtype=np.float64)
 
-    for idx in [eta < m, eta >= m, m == 0, eta == 0]:
-        cdf[idx] = _marcumq(eta/sigma, m[idx]/sigma, N)
+    #for idx in [eta < m, eta >= m, m == 0, eta == 0]:
+    #    if cdf[idx].size > 0:
+    #        cdf[idx] = _marcumq(eta/sigma, m[idx]/sigma, N)
+    cdf = 1 - _marcumq(eta/sigma, m/sigma, N)
+    cdf = np.array(cdf)
+
 
     #for idx in ndindex(m.shape):
     #    cdf[idx] = _marcumq(eta/sigma, m[idx]/sigma, N)
+
     # Find outliers and clip them to confidence interval limits
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
+
     #if cdf < alpha/2:
     #    cdf = alpha/2
 
