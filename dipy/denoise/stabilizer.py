@@ -7,13 +7,8 @@ import numpy as np
 
 import os
 import argparse
-#import hispeed
 
-#from dipy.io.gradients import read_bvals_bvecs
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
-#from dipy.core.ndindex import ndindex
-
-#from time import time
 
 DESCRIPTION = """
     Convenient script to transform noisy rician/chi-squared signals into

@@ -5,7 +5,7 @@ import numpy as np
 from scipy.special import erfinv, hyp1f1, iv, gammainccinv
 from scipy.misc import factorial, factorial2
 #from scipy.integrate import quad, romberg, romb
-from scipy import stats
+#from scipy import stats
 
 #from dipy.core.ndindex import ndindex
 
@@ -20,20 +20,20 @@ def _inv_nchi_cdf(N, K, alpha):
     return gammainccinv(N * K, 1 - alpha) / K
 
 
-def _cdf_nchi(alpha, eta, sigma, N):
+# def _cdf_nchi(alpha, eta, sigma, N):
 
-    #return 1 - _marcumq(eta/sigma, alpha/sigma, N)
-    #print(alpha.shape,eta.shape,sigma.shape)
-    out = np.zeros_like(alpha)
-    for idx in range(alpha.size):
-        out[idx] = romberg(_pdf_nchi, 0, alpha[idx], args=(eta, sigma, N))
-    return out
-    #return romberg(_pdf_nchi, 0, alpha, args=(eta, sigma, N))#[0]#, limit=250)[0]
-    #sample = np.linspace(0, alpha)
-    #return romb(y)
+#     #return 1 - _marcumq(eta/sigma, alpha/sigma, N)
+#     #print(alpha.shape,eta.shape,sigma.shape)
+#     out = np.zeros_like(alpha)
+#     for idx in range(alpha.size):
+#         out[idx] = romberg(_pdf_nchi, 0, alpha[idx], args=(eta, sigma, N))
+#     return out
+#     #return romberg(_pdf_nchi, 0, alpha, args=(eta, sigma, N))#[0]#, limit=250)[0]
+#     #sample = np.linspace(0, alpha)
+#     #return romb(y)
 
-def _pdf_nchi(m, eta, sigma, N):
-    return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
+# def _pdf_nchi(m, eta, sigma, N):
+#     return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
 
 
 def _beta(N):
@@ -60,29 +60,18 @@ def _fixed_point_k(eta, m, sigma, N):
     return eta - num / denom
 
 
-#def _marcumq(lbda, gamma, N):
 def _marcumq(a, b, M, eps=10**-16):
-    #def _integrand(s, lbda, N):
-    #    return s**N * np.exp(-0.5*(lbda**2 + s**2)) * iv(N-1, lbda*s)
 
     if np.all(b == 0):
         return np.ones_like(b)
 
     if np.all(a == 0):
-    #     #Q = np.exp(-.5*b**2)
-    #     #temp = 0
 
         k = np.arange(M)
-    #     #Q = np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
-
-    #     #for k in range(M-1):
-    #     #    temp += np.sum(b**(2*k) / (2**k * factorial(k)))
-
         return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
 
-    #k = M
     z = a * b
-    #t = 1
+    expz = np.exp(-z)
     k = 0
 
     if np.all(a < b):
@@ -91,16 +80,13 @@ def _marcumq(a, b, M, eps=10**-16):
         c = 0
         x = a/b
         d = x
-        expz = np.exp(-z)
         S = iv(0, z) * expz
 
         for k in range(1, M):
-            t = (d + 1/d) * iv(k, z) * expz
-            S += t
-            #S += (d + 1/d) * iv(k, z) * np.exp(-z)
-            d *= x
 
-        #N = k+1
+            S += (d + 1/d) * iv(k, z) * expz
+            d = d * x
+
         k += 1
 
     else:
@@ -110,77 +96,41 @@ def _marcumq(a, b, M, eps=10**-16):
         k = M
         d = x**M
         S = 0
-        t = 1
-        #N = 0
-
-    #t = d * iv(np.abs(k), z) * np.exp(-z)
-    #S += t
-    #d *= x
-    #N = k + 1
-    #k += 1
 
     condition = True
-    #first = True
 
     while np.all(condition):
 
         t = d * iv(k, z) * expz
         S += t
-        d *= x
-        #N = k + 1
+        d = d * x
         k += 1
 
         condition = np.abs(t/S) > eps
-        #first = False
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
-    #k = np.arange(N-1, 10**8)
-    #inf_sum = np.sum( (lbda/gamma)**k * iv(k, lbda*gamma)  )
-    #return np.exp(-0.5 * (lbda**2 + gamma**2)) * inf_sum
-    #print(gamma.shape)
-    #print(romberg(_integrand, gamma, 10**100, args=(lbda, N), vec_func=True))
-    #return 1/(lbda**(N-1)) * romberg(_integrand, gamma, 10.**100, args=(lbda, N), vec_func=True)#[0]
-    #return 1/(lbda**(N-1)) * romb(_integrand(np.linspace(gamma, 25, 1000), lbda, N), dx=)
 
 
 #vec_cdf_nchi = np.vectorize(_cdf_nchi, otypes=["float64"], cache=True)
-class ncx(stats.rv_continuous):
-    def _pdf(self, m, eta, sigma, N):
-        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
+#class ncx(stats.rv_continuous):
+#    def _pdf(self, m, eta, sigma, N):
+#        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
 
 
 
 def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
 
-    #vec_cdf_nchi = np.vectorize(_cdf_nchi)
-    #cdf = vec_cdf_nchi(m, eta, sigma, N)
-    #cdf = _cdf_nchi(m, eta, sigma, N)
-    #cdf = ncx(name="noncentral chi", a=0).cdf(m, eta, sigma, N)
-    #cdf = stats.ncx2.cdf(m, N, eta)
-    #print(cdf, type(cdf))
-    #vec_marcumq = np.vectorize(_marcumq)
-    #from marcum import _marcumq
-    #cdf = 1 - vec_marcumq(eta/sigma, m/sigma, N)
+    m = np.array(m)
     cdf = np.zeros_like(m, dtype=np.float64)
 
-    #for idx in [eta < m, eta >= m, m == 0, eta == 0]:
-    #    if cdf[idx].size > 0:
-    #        cdf[idx] = _marcumq(eta/sigma, m[idx]/sigma, N)
-    cdf = 1 - _marcumq(eta/sigma, m/sigma, N)
-    cdf = np.array(cdf)
+    # eta = 0 => cdf is zero
+    if eta > 0:
+        for idx in [eta/sigma < m/sigma, np.logical_and(eta/sigma >= m/sigma, m > 0), m == 0]:
+           if cdf[idx].size > 0:
+               cdf[idx] = np.array(1 - _marcumq(eta/sigma, m[idx]/sigma, N))
 
-
-    #for idx in ndindex(m.shape):
-    #    cdf[idx] = _marcumq(eta/sigma, m[idx]/sigma, N)
-
-    # Find outliers and clip them to confidence interval limits
+    # Find outliers and clip them to the confidence interval limits
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
-
-    #if cdf < alpha/2:
-    #    cdf = alpha/2
-
-    #if cdf > 1 - alpha/2:
-    #    cdf = 1 - alpha/2
 
     return _inv_cdf_gauss(cdf, eta, sigma)
 
@@ -199,7 +149,8 @@ def fixed_point_finder(m, sigma, N, max_iter=500, eps=10**-10):
     t1 = _fixed_point_k(t0, m, sigma, N)
     n_iter = 0
 
-    while(np.abs(t0 - t1) > eps):
+    while (np.abs(t0 - t1) > eps):
+
         t0 = t1
         t1 = _fixed_point_k(t0, m, sigma, N)
         n_iter += 1
@@ -218,7 +169,7 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-10):
     A routine for finding the underlying gaussian distribution standard
     deviation from magnitude signals.
 
-    This is a reimplementation of [1]_ and the second step in the
+    This is a re-implementation of [1]_ and the second step in the
     stabilisation framework of [2]_.
 
     Parameters
