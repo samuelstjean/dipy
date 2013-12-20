@@ -117,7 +117,7 @@ def _marcumq(a, b, M, eps=10**-16):
 #        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
 
 
-def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
+def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005):
 
     #cdf = np.clip(1 - _marcumq(eta/sigma, m/sigma, N), alpha/2, 1 - alpha/2)
 
@@ -140,42 +140,39 @@ def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-def fixed_point_finder(m, sigma, N, max_iter=500, eps=10**-10):
+def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-10):
 
     delta = _beta(N) * sigma - m
     out = np.zeros_like(delta)
 
-    for idx in [delta < 0, delta > 0, delta == 0]:
+    for idx in [delta < 0, delta > 0]:
 
         #if delta == 0:
         #    return 0
 
-        if np.all(delta[idx] == 0):
-            out[idx] = 0
+        #if np.all(delta[idx] != 0):
 
-        else:
+        if np.all(delta[idx] > 0):
+            m[idx] = _beta(N) * sigma + delta[idx]
 
-            if np.all(delta[idx] > 0):
-                m[idx] = _beta(N) * sigma + delta[idx]
+        t0 = m[idx]
+        t1 = _fixed_point_k(t0, m[idx], sigma, N)
+        n_iter = 0
 
-            t0 = m[idx]
+        while np.any(np.abs(t0 - t1) > eps):
+
+            t0 = t1
             t1 = _fixed_point_k(t0, m[idx], sigma, N)
-            n_iter = 0
+            n_iter += 1
 
-            while np.any(np.abs(t0 - t1) > eps):
+            if n_iter > max_iter:
+                break
 
-                t0 = t1
-                t1 = _fixed_point_k(t0, m[idx], sigma, N)
-                n_iter += 1
-
-                if n_iter > max_iter:
-                    break
-
-            if np.all(delta[idx] > 0):
-                out[idx] = -t1
-                #return -t1
-            if np.all(delta[idx] < 0):
-                out[idx] = t1
+        if np.all(delta[idx] > 0):
+            out[idx] = -t1
+            #return -t1
+        if np.all(delta[idx] < 0):
+            out[idx] = t1
 
     return out
     #return t1

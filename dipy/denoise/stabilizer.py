@@ -9,7 +9,7 @@ import os
 import argparse
 
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
-from dipy.core.ndindex import ndindex
+#from dipy.core.ndindex import ndindex
 
 DESCRIPTION = """
     Convenient script to transform noisy rician/chi-squared signals into
@@ -59,6 +59,7 @@ def main():
 
     max_val = data.max()
     min_val = data.min()
+    dtype = data.dtype
     data = (data - min_val) / (max_val - min_val)
 
     #o_dtype = data.dtype
@@ -109,15 +110,15 @@ def main():
 
         #signal_intensity = fixed_point_finder(np.mean(data[..., idx, :]), sigma[idx], N)
         #print(sigma[idx], eta[idx], np.mean(data[..., idx, :]), np.median(data[..., idx, :]), np.mean(data), np.median(data))
-        print(sigma[idx])
+        #print(sigma[idx])
 
 
-    for idx in range(data.shape[-2]):
+    #for idx in range(data.shape[-2]):
         #print(idx)
         eta[..., idx, :] = fixed_point_finder(data[..., idx, :], sigma[idx], N)
         #data_stabilized[idx] = chi_to_gauss(data[idx], eta[idx], sigma[idx[-2]], N)
         #print(idx)
-        print (idx, eta[30, 30, idx, 0], data[30, 30, idx, 0], sigma[idx])
+        #print (idx, eta[30, 30, idx, 0], data[30, 30, idx, 0], sigma[idx])
         #if idx[0] > cur:
         #    cur = idx[0]
         #    print(cur, eta[30, 30, idx[-2], 0], data[30, 30, idx[-2], 0],
@@ -147,7 +148,7 @@ def main():
     #print(sigma)
     #print(eta)
     #1/0
-    for idx in range(data.shape[-2]):
+    #for idx in range(data.shape[-2]):
         print(idx)
         #print(chi_to_gauss(data[..., idx, :], eta[idx], sigma[idx], N))
         data_stabilized[..., idx, :] = chi_to_gauss(data[..., idx, :], eta[..., idx, :], sigma[idx], N)
@@ -167,7 +168,7 @@ def main():
 
     data_stabilized = data_stabilized * (max_val - min_val) + min_val
 
-    nib.save(nib.Nifti1Image(data_stabilized, affine, header), filename)
+    nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename)
 
 
 if __name__ == "__main__":
