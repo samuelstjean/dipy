@@ -82,7 +82,7 @@ def main():
 
     # Estimated noise standard deviation
     #sigma = np.zeros(data.shape[-1])
-    print("Now running PIESNO...")
+    #print("Now running PIESNO...")
     #tima=time()
 
     #data = data[..., 2:]
@@ -104,7 +104,7 @@ def main():
     #print(mean_slice.shape)
 
     for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice):
-   #     print("Now processing slice", idx+1, "out of", data.shape[-2])
+        print("Now processing slice", idx+1, "out of", data.shape[-2])
         sigma[idx] = piesno(data[..., idx, :],  N)
         #eta[idx] = fixed_point_finder(mean_slice[idx], sigma[idx], N)
 
@@ -149,7 +149,7 @@ def main():
     #print(eta)
     #1/0
     #for idx in range(data.shape[-2]):
-        print(idx)
+       # print(idx)
         #print(chi_to_gauss(data[..., idx, :], eta[idx], sigma[idx], N))
         data_stabilized[..., idx, :] = chi_to_gauss(data[..., idx, :], eta[..., idx, :], sigma[idx], N)
 

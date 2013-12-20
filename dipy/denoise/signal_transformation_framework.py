@@ -66,7 +66,6 @@ def _marcumq(a, b, M, eps=10**-16):
         return np.ones_like(b)
 
     if np.all(a == 0):
-
         k = np.arange(M)
         return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
 
@@ -90,6 +89,7 @@ def _marcumq(a, b, M, eps=10**-16):
         k += 1
 
     else:
+
         s = -1
         c = 1
         x = b/a
