@@ -9,6 +9,7 @@ import os
 import argparse
 
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
+from dipy.core.ndindex import ndindex
 
 DESCRIPTION = """
     Convenient script to transform noisy rician/chi-squared signals into
@@ -52,9 +53,13 @@ def main():
     args = parser.parse_args()
 
     vol = nib.load(args.input)
-    data = vol.get_data()
+    data = vol.get_data()#[30:100,30:100, 30:40, :20]
     header = vol.get_header()
     affine = vol.get_affine()
+
+    max_val = data.max()
+    min_val = data.min()
+    data = (data - min_val) / (max_val - min_val)
 
     #o_dtype = data.dtype
     #o_shape = data.shape
@@ -83,23 +88,57 @@ def main():
 
     #min_slice = data.shape[-2]//4
     sigma = np.zeros(data.shape[-2])
-    eta = np.zeros(data.shape[-2])
+    #eta = np.zeros(data.shape[-2])
+
+    eta = np.zeros_like(data)
+
+
     #N=1
     #sigma = []
     #eta = []
     #eta = np.mean(data, axis=tuple(range(data.ndim-1)))
     #print(tuple(range(data.ndim)))
     data_stabilized = np.zeros_like(data, dtype=np.float64)
-    mean_slice = np.mean(data.swapaxes(-1, -2), axis=tuple(range(data.ndim-1)))
+    #mean_slice = np.mean(data.swapaxes(-1, -2), axis=tuple(range(data.ndim-1)))
     #print(mean_slice.shape)
 
     for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice):
    #     print("Now processing slice", idx+1, "out of", data.shape[-2])
         sigma[idx] = piesno(data[..., idx, :],  N)
-        #print(mean_slice[idx], sigma[idx], N)
-        eta[idx] = fixed_point_finder(mean_slice[idx], sigma[idx], N)
+        #eta[idx] = fixed_point_finder(mean_slice[idx], sigma[idx], N)
+
         #signal_intensity = fixed_point_finder(np.mean(data[..., idx, :]), sigma[idx], N)
-        print(sigma[idx], eta[idx], np.mean(data[..., idx, :]), np.median(data[..., idx, :]), np.mean(data), np.median(data))
+        #print(sigma[idx], eta[idx], np.mean(data[..., idx, :]), np.median(data[..., idx, :]), np.mean(data), np.median(data))
+        print(sigma[idx])
+
+
+    for idx in range(data.shape[-2]):
+        #print(idx)
+        eta[..., idx, :] = fixed_point_finder(data[..., idx, :], sigma[idx], N)
+        #data_stabilized[idx] = chi_to_gauss(data[idx], eta[idx], sigma[idx[-2]], N)
+        #print(idx)
+        print (idx, eta[30, 30, idx, 0], data[30, 30, idx, 0], sigma[idx])
+        #if idx[0] > cur:
+        #    cur = idx[0]
+        #    print(cur, eta[30, 30, idx[-2], 0], data[30, 30, idx[-2], 0],
+        #          data_stabilized[30, 30, idx[-2], 0], sigma[idx[-2]])
+
+
+    # cur = 0
+    # for idx in ndindex(data.shape):
+    #     #print(idx)
+    #     eta[idx] = fixed_point_finder(data[idx], sigma[idx[-2]], N)
+    #     #data_stabilized[idx] = chi_to_gauss(data[idx], eta[idx], sigma[idx[-2]], N)
+    #     #print(idx)
+
+    #     if idx[0] > cur:
+    #         cur = idx[0]
+    #         print(cur, eta[30, 30, idx[-2], 0], data[30, 30, idx[-2], 0],
+    #               data_stabilized[30, 30, idx[-2], 0], sigma[idx[-2]])
+
+        #print(eta[idx])
+
+    #1/0
 
     #sigma = piesno(data,  N)
         #print(mean_slice[idx], sigma[idx], N)
@@ -109,9 +148,9 @@ def main():
     #print(eta)
     #1/0
     for idx in range(data.shape[-2]):
-        #print(idx)
+        print(idx)
         #print(chi_to_gauss(data[..., idx, :], eta[idx], sigma[idx], N))
-        data_stabilized[..., idx, :] = chi_to_gauss(data[..., idx, :], eta[idx], sigma[idx], N)
+        data_stabilized[..., idx, :] = chi_to_gauss(data[..., idx, :], eta[..., idx, :], sigma[idx], N)
 
     #print(np.median(sigma), np.mean(sigma))
     #sigma = np.median(sigma)
@@ -125,6 +164,8 @@ def main():
         #signal_intensity = 120
         #print(sigma[idx], signal_intensity)
         #data_stabilized[..., idx] = chi_to_gauss(data[..., idx], signal_intensity, sigma[idx], N)
+
+    data_stabilized = data_stabilized * (max_val - min_val) + min_val
 
     nib.save(nib.Nifti1Image(data_stabilized, affine, header), filename)
 

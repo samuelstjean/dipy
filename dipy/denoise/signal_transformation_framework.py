@@ -51,11 +51,11 @@ def _fixed_point_g(eta, m, sigma, N):
 def _fixed_point_k(eta, m, sigma, N):
 
     fpg = _fixed_point_g(eta, m, sigma, N)
-    num =  fpg * (fpg - eta)
+    num = fpg * (fpg - eta)
 
     denom = eta * (1 - ((_beta(N)**2)/(2*N)) *
-            hyp1f1(-0.5, N, -eta**2/(2*sigma**2)) *
-            hyp1f1(0.5, N+1, -eta**2/(2*sigma**2))) - fpg
+                   hyp1f1(-0.5, N, -eta**2/(2*sigma**2)) *
+                   hyp1f1(0.5, N+1, -eta**2/(2*sigma**2))) - fpg
 
     return eta - num / denom
 
@@ -117,17 +117,22 @@ def _marcumq(a, b, M, eps=10**-16):
 #        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
 
 
-
 def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
 
-    m = np.array(m)
+    #cdf = np.clip(1 - _marcumq(eta/sigma, m/sigma, N), alpha/2, 1 - alpha/2)
+
+    # m = np.array(m)
     cdf = np.zeros_like(m, dtype=np.float64)
 
-    # eta = 0 => cdf is zero
-    if eta > 0:
-        for idx in [eta/sigma < m/sigma, np.logical_and(eta/sigma >= m/sigma, m > 0), m == 0]:
-           if cdf[idx].size > 0:
-               cdf[idx] = np.array(1 - _marcumq(eta/sigma, m[idx]/sigma, N))
+    # # eta = 0 => cdf is zero
+    # if eta > 0:
+    for idx in [np.logical_and(eta/sigma < m/sigma, eta > 0),
+                np.logical_and(eta/sigma >= m/sigma, m > 0),
+                m == 0,
+                eta == 0]:
+
+        if cdf[idx].size > 0:
+            cdf[idx] = np.array(1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N))
 
     # Find outliers and clip them to the confidence interval limits
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
@@ -138,30 +143,42 @@ def chi_to_gauss(m, eta, sigma, N, alpha=0.0005):
 def fixed_point_finder(m, sigma, N, max_iter=500, eps=10**-10):
 
     delta = _beta(N) * sigma - m
+    out = np.zeros_like(delta)
 
-    if delta == 0:
-        return 0
+    for idx in [delta < 0, delta > 0, delta == 0]:
 
-    if delta > 0:
-        m = _beta(N) * sigma + delta
+        #if delta == 0:
+        #    return 0
 
-    t0 = m
-    t1 = _fixed_point_k(t0, m, sigma, N)
-    n_iter = 0
+        if np.all(delta[idx] == 0):
+            out[idx] = 0
 
-    while (np.abs(t0 - t1) > eps):
+        else:
 
-        t0 = t1
-        t1 = _fixed_point_k(t0, m, sigma, N)
-        n_iter += 1
+            if np.all(delta[idx] > 0):
+                m[idx] = _beta(N) * sigma + delta[idx]
 
-        if n_iter > max_iter:
-            break
+            t0 = m[idx]
+            t1 = _fixed_point_k(t0, m[idx], sigma, N)
+            n_iter = 0
 
-    if delta > 0:
-        return -t1
+            while np.any(np.abs(t0 - t1) > eps):
 
-    return t1
+                t0 = t1
+                t1 = _fixed_point_k(t0, m[idx], sigma, N)
+                n_iter += 1
+
+                if n_iter > max_iter:
+                    break
+
+            if np.all(delta[idx] > 0):
+                out[idx] = -t1
+                #return -t1
+            if np.all(delta[idx] < 0):
+                out[idx] = t1
+
+    return out
+    #return t1
 
 
 def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-10):
