@@ -59,7 +59,7 @@ def main():
 
     max_val = data.max()
     min_val = data.min()
-    dtype = data.dtype
+    dtype = np.int16 # data.dtype
     data = (data - min_val) / (max_val - min_val)
 
     #o_dtype = data.dtype
