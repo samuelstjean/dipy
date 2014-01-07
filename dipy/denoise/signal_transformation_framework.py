@@ -4,6 +4,7 @@ import numpy as np
 
 from scipy.special import erfinv, hyp1f1, iv, gammainccinv
 from scipy.misc import factorial, factorial2
+import mpmath as mp
 #from scipy.integrate import quad, romberg, romb
 #from scipy import stats
 
@@ -41,10 +42,34 @@ def _beta(N):
 
 
 def _xi(eta, sigma, N):
-    return 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
+    ##print(np.sum(np.isnan(eta**2)), np.sum(np.isnan(hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))))
+    #return 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
+    out = 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
+    idx = np.logical_or(np.isnan(out), np.isinf(out))
+    out[idx] = eta[idx]
+    print(np.sum(np.isnan(out)), np.sum(np.isinf(out)))
+    return out
+
+    # hyp = np.frompyfunc(mp.hyp1f1, 3, 1)
+    # out = 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
+    # out[np.isnan(out)] = np.array(hyp(-0.5, N, -eta[np.isnan(out)]**2/(2*sigma**2)), dtype=np.float64)
+    # print(np.sum(np.isnan(out)))
+    # print(np.sum(np.isnan(2*N + eta**2/sigma**2 - (_beta(N) * out)**2)))
+    # return 2*N + eta**2/sigma**2 - (_beta(N) * out)**2
+
+    # out = np.zeros_like(eta)
+    # div = 2*sigma**2
+
+    # for idx in np.ndindex(eta.shape):
+    #     out[idx] = hyp1f1(-0.5, N, -eta[idx]**2/div)
+
+    # return 2*N + eta**2/sigma**2 - (_beta(N) * out)**2
 
 
 def _fixed_point_g(eta, m, sigma, N):
+    #print(np.sum(np.isnan(_xi(eta, sigma, N))))
+    #print(np.sum(np.sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2) < 0))
+    #print(np.sum(np.isinf(_xi(eta, sigma, N))), np.sum(np.isinf(np.sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2))))
     return np.sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
 
 
@@ -66,13 +91,20 @@ def _marcumq(a, b, M, eps=10**-10):
         return np.ones_like(b)
 
     if np.all(a == 0):
-        k = np.arange(M)
-        return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
+        #k = np.arange(M)
+        #return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
+
+        temp = 0
+        for k in range(M):
+            temp += b**(2*k) / (2**k * factorial(k))
+
+        return np.exp(-b**2/2) * temp
 
     z = a * b
     expz = np.exp(-z)
     k = 0
-
+    #print(np.sum(np.isnan(expz)), np.sum(np.isinf(expz)))
+    #print(np.sum(np.isnan(iv(0, z))), np.sum(np.isinf(iv(0, z))))
     if np.all(a < b):
 
         s = 1
@@ -135,6 +167,10 @@ def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005):
             cdf[idx] = np.array(1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N))
 
     # Find outliers and clip them to the confidence interval limits
+    print(np.sum(cdf < alpha/2), np.sum(cdf > 1 - alpha/2), np.sum(np.logical_or(alpha/2 < cdf, cdf < 1 - alpha/2)))
+    print(np.sum(np.isnan(cdf)), np.sum(np.isinf(cdf)))
+    cdf[np.isnan(cdf)] = 0
+    cdf[np.isinf(cdf)] = 1
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
 
     return _inv_cdf_gauss(cdf, eta, sigma)
@@ -148,45 +184,45 @@ def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-10):
     t1 = np.zeros_like(delta)
     ind = np.zeros_like(delta, dtype=np.bool)
 
-    for idx_full in [delta < 0, delta > 0]:
+    for idx in [delta < 0, delta > 0]:
 
         #if delta == 0:
         #    return 0
 
         #if np.all(delta[idx] != 0):
 
-        if np.all(delta[idx_full] > 0):
-            m[idx_full] = _beta(N) * sigma + delta[idx_full]
+        if np.all(delta[idx] > 0):
+            m[idx] = _beta(N) * sigma + delta[idx]
 
-        t0[idx_full] = m[idx_full]
-        t1[idx_full] = _fixed_point_k(t0[idx_full], m[idx_full], sigma, N)
-        #t0 = m[idx_full]
-        #t1 = _fixed_point_k(t0, m[idx_full], sigma, N)
+        t0[idx] = m[idx]
+        t1[idx] = _fixed_point_k(t0[idx], m[idx], sigma, N)
+        #t0 = m[idx]
+        #t1 = _fixed_point_k(t0, m[idx], sigma, N)
 
         n_iter = 0
-        #print(t0.shape, t1.shape, idx_full.shape)
-        ind[idx_full] = np.abs(t0[idx_full] - t1[idx_full]) > eps
+        #print(t0.shape, t1.shape, idx.shape)
+        ind[idx] = np.abs(t0[idx] - t1[idx]) > eps
 
         #while np.any(np.abs(t0 - t1) > eps):
         while np.any(ind):
 
             #t0 = t1
-            #t1 = _fixed_point_k(t0, m[idx_full], sigma, N)
+            #t1 = _fixed_point_k(t0, m[idx], sigma, N)
             #n_iter += 1
 
             t0[ind] = t1[ind]
             t1[ind] = _fixed_point_k(t0[ind], m[ind], sigma, N)
             n_iter += 1
-            ind[idx_full] = np.abs(t0[idx_full] - t1[idx_full]) > eps
+            ind[idx] = np.abs(t0[idx] - t1[idx]) > eps
 
             if n_iter > max_iter:
                 break
 
-        if np.all(delta[idx_full] > 0):
-            out[idx_full] = -t1[idx_full]
+        if np.all(delta[idx] > 0):
+            out[idx] = -t1[idx]
             #return -t1
-        if np.all(delta[idx_full] < 0):
-            out[idx_full] = t1[idx_full]
+        if np.all(delta[idx] < 0):
+            out[idx] = t1[idx]
 
     return out
     #return t1
