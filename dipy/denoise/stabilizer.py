@@ -10,6 +10,7 @@ import argparse
 
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
 #from dipy.core.ndindex import ndindex
+from time import time
 
 DESCRIPTION = """
     Convenient script to transform noisy rician/chi-squared signals into
@@ -29,9 +30,6 @@ def buildArgsParser():
 
     p.add_argument('input', action='store', metavar=' ',
                    help='Path of the image file to stabilize.')
-
-    #p.add_argument('bvals', action='store', metavar=' ',
-    #               help='Path of the bvals file, in FSL format.')
 
     p.add_argument('-N', action='store', dest='N',
                    metavar=' ', required=False, default=12, type=int,
@@ -53,14 +51,14 @@ def main():
     args = parser.parse_args()
 
     vol = nib.load(args.input)
-    data = vol.get_data()#[30:100,30:100, 30:40, :20]
+    data = vol.get_data().astype('float64') #[30:100,30:100, 30:40, :20]
     header = vol.get_header()
     affine = vol.get_affine()
 
     max_val = data.max()
     min_val = data.min()
     dtype = np.int16 # data.dtype
-    data = (data - min_val) / (max_val - min_val)
+    ##data = (data - min_val) / (max_val - min_val)
 
     #o_dtype = data.dtype
     #o_shape = data.shape
@@ -88,10 +86,10 @@ def main():
     #data = data[..., 2:]
 
     #min_slice = data.shape[-2]//4
-    sigma = np.zeros(data.shape[-2])
+    sigma = np.zeros(data.shape[-2], dtype=np.float64)
     #eta = np.zeros(data.shape[-2])
 
-    eta = np.zeros_like(data)
+    eta = np.zeros_like(data, dtype=np.float64)
 
 
     #N=1
@@ -102,10 +100,11 @@ def main():
     data_stabilized = np.zeros_like(data, dtype=np.float64)
     #mean_slice = np.mean(data.swapaxes(-1, -2), axis=tuple(range(data.ndim-1)))
     #print(mean_slice.shape)
-
-    for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice):
+    deb = time()
+    for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice): in range(25,30): #
         print("Now processing slice", idx+1, "out of", data.shape[-2])
         sigma[idx] = piesno(data[..., idx, :],  N)
+        print(sigma[idx])
         #eta[idx] = fixed_point_finder(mean_slice[idx], sigma[idx], N)
 
         #signal_intensity = fixed_point_finder(np.mean(data[..., idx, :]), sigma[idx], N)
@@ -166,7 +165,9 @@ def main():
         #print(sigma[idx], signal_intensity)
         #data_stabilized[..., idx] = chi_to_gauss(data[..., idx], signal_intensity, sigma[idx], N)
 
-    data_stabilized = data_stabilized * (max_val - min_val) + min_val
+    print("temps total:", time() - deb)
+
+    ##data_stabilized = data_stabilized * (max_val - min_val) + min_val
 
     nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename)
 

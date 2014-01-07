@@ -60,7 +60,7 @@ def _fixed_point_k(eta, m, sigma, N):
     return eta - num / denom
 
 
-def _marcumq(a, b, M, eps=10**-16):
+def _marcumq(a, b, M, eps=10**-10):
 
     if np.all(b == 0):
         return np.ones_like(b)
@@ -95,18 +95,18 @@ def _marcumq(a, b, M, eps=10**-16):
         x = b/a
         k = M
         d = x**M
-        S = 0
+        S = np.zeros_like(z)
 
-    condition = True
+    cond = True  # np.ones_like(z, dtype=np.bool)
 
-    while np.all(condition):
+    while np.all(cond):
 
         t = d * iv(k, z) * expz
         S += t
         d = d * x
         k += 1
 
-        condition = np.abs(t/S) > eps
+        cond = np.abs(t/S) > eps
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
 
@@ -144,35 +144,49 @@ def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-10):
 
     delta = _beta(N) * sigma - m
     out = np.zeros_like(delta)
+    t0 = np.zeros_like(delta)
+    t1 = np.zeros_like(delta)
+    ind = np.zeros_like(delta, dtype=np.bool)
 
-    for idx in [delta < 0, delta > 0]:
+    for idx_full in [delta < 0, delta > 0]:
 
         #if delta == 0:
         #    return 0
 
         #if np.all(delta[idx] != 0):
 
-        if np.all(delta[idx] > 0):
-            m[idx] = _beta(N) * sigma + delta[idx]
+        if np.all(delta[idx_full] > 0):
+            m[idx_full] = _beta(N) * sigma + delta[idx_full]
 
-        t0 = m[idx]
-        t1 = _fixed_point_k(t0, m[idx], sigma, N)
+        t0[idx_full] = m[idx_full]
+        t1[idx_full] = _fixed_point_k(t0[idx_full], m[idx_full], sigma, N)
+        #t0 = m[idx_full]
+        #t1 = _fixed_point_k(t0, m[idx_full], sigma, N)
+
         n_iter = 0
+        #print(t0.shape, t1.shape, idx_full.shape)
+        ind[idx_full] = np.abs(t0[idx_full] - t1[idx_full]) > eps
 
-        while np.any(np.abs(t0 - t1) > eps):
+        #while np.any(np.abs(t0 - t1) > eps):
+        while np.any(ind):
 
-            t0 = t1
-            t1 = _fixed_point_k(t0, m[idx], sigma, N)
+            #t0 = t1
+            #t1 = _fixed_point_k(t0, m[idx_full], sigma, N)
+            #n_iter += 1
+
+            t0[ind] = t1[ind]
+            t1[ind] = _fixed_point_k(t0[ind], m[ind], sigma, N)
             n_iter += 1
+            ind[idx_full] = np.abs(t0[idx_full] - t1[idx_full]) > eps
 
             if n_iter > max_iter:
                 break
 
-        if np.all(delta[idx] > 0):
-            out[idx] = -t1
+        if np.all(delta[idx_full] > 0):
+            out[idx_full] = -t1[idx_full]
             #return -t1
-        if np.all(delta[idx] < 0):
-            out[idx] = t1
+        if np.all(delta[idx_full] < 0):
+            out[idx_full] = t1[idx_full]
 
     return out
     #return t1
