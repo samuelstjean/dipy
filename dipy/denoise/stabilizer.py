@@ -56,7 +56,7 @@ def main():
     max_val = data.max()
     min_val = data.min()
     dtype = np.int16 # data.dtype
-    data = (data - min_val) / (max_val - min_val)
+    ##data = (data - min_val) / (max_val - min_val)
 
     if args.savename is None:
         temp, ext = str.split(os.path.basename(args.input), '.', 1)
@@ -66,17 +66,14 @@ def main():
         filename = args.savename
 
     N = args.N
-
     sigma = np.zeros(data.shape[-2], dtype=np.float64)
-
     eta = np.zeros_like(data, dtype=np.float64)
-
     data_stabilized = np.zeros_like(data, dtype=np.float64)
 
     from time import time
     deb = time()
 
-    for idx in range(25,35): # range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice): in range(25,30): #
+    for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice): in range(25,30): #
         print("Now processing slice", idx+1, "out of", data.shape[-2])
 
         sigma[idx] = piesno(data[..., idx, :],  N)
@@ -89,7 +86,7 @@ def main():
 
     print("temps total:", time() - deb)
 
-    data_stabilized = data_stabilized * (max_val - min_val) + min_val
+    ##data_stabilized = data_stabilized * (max_val - min_val) + min_val
     nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename)
 
 

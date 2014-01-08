@@ -2,9 +2,9 @@ from __future__ import division, print_function
 
 import numpy as np
 
-from scipy.special import erfinv, hyp1f1, iv, gammainccinv
+from scipy.special import erfinv, hyp1f1, ive, gammainccinv
 from scipy.misc import factorial, factorial2
-import mpmath as mp
+#import mpmath as mp
 #from scipy.integrate import quad, romberg, romb
 #from scipy import stats
 
@@ -43,12 +43,28 @@ def _beta(N):
 
 def _xi(eta, sigma, N):
     ##print(np.sum(np.isnan(eta**2)), np.sum(np.isnan(hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))))
-    #return 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
-    out = 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
-    idx = np.logical_or(np.isnan(out), np.isinf(out))
-    out[idx] = eta[idx]
-    print(np.sum(np.isnan(out)), np.sum(np.isinf(out)))
-    return out
+    return 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
+    # out = 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
+
+    # print(np.sum(np.isnan(out)), np.sum(np.isinf(out)), "in")
+    # idx = np.logical_or(np.isnan(out), np.isinf(out))
+    # out[idx] = eta[idx]
+
+
+    # #hyp = np.frompyfunc(mp.hyp1f1, 3, 1)
+    # #out[idx] = np.array(hyp(-0.5, N, -eta[idx]**2/(2*sigma**2)), dtype=np.float64)
+    # #out[idx] = 2*N + eta[idx]**2/sigma**2 - (_beta(N) * out[idx])**2
+
+    # #_dtype_object = np.dtype('object')
+    # #_cfunc_mpf = np.vectorize(mp.mpf, otypes=(_dtype_object,))
+    # #func = _cfunc_mpf
+    # #tmp = eta[idx]
+    # #res = func(tmp)
+    # #res2 = 2*N + tmp**2/sigma**2 - (_beta(N) * mp.hyp1f1(-0.5, N, -tmp**2/(2*sigma**2)))**2
+    # #out[idx] = res2
+    # #print(np.sum(np.isnan(res2)), np.sum(np.isinf(res2)), "out")
+    # print(np.sum(np.isnan(out)), np.sum(np.isinf(out)), "out")
+    # return out
 
     # hyp = np.frompyfunc(mp.hyp1f1, 3, 1)
     # out = 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
@@ -82,10 +98,20 @@ def _fixed_point_k(eta, m, sigma, N):
                    hyp1f1(-0.5, N, -eta**2/(2*sigma**2)) *
                    hyp1f1(0.5, N+1, -eta**2/(2*sigma**2))) - fpg
 
+    #print(np.max(eta), np.min(eta), np.min(-eta**2/(2*sigma**2)), np.max(-eta**2/(2*sigma**2)))
+    #idx = np.logical_or(np.isnan(denom), np.isinf(denom))
+    #out[idx] = eta[idx]
+    #hyp = np.frompyfunc(mp.hyp1f1, 3, 1)
+    #denom[idx] = np.array(eta[idx] * (1 - ((_beta(N)**2)/(2*N)) *
+    #                      hyp(-0.5, N, -eta[idx]**2/(2*sigma**2)) *
+    #                      hyp(0.5, N+1, -eta[idx]**2/(2*sigma**2))) - fpg[idx], dtype=np.float64)
+
+    #print(np.sum(np.isnan(eta - num / denom)), np.sum(np.isinf(eta - num / denom)), "fpk")
+    #print(np.sum(np.isnan(eta)), np.sum(np.isnan(num)), np.sum(np.isnan(denom)))
     return eta - num / denom
 
 
-def _marcumq(a, b, M, eps=10**-10):
+def _marcumq(a, b, M, eps=10**-12):
 
     if np.all(b == 0):
         return np.ones_like(b)
@@ -100,22 +126,23 @@ def _marcumq(a, b, M, eps=10**-10):
 
         return np.exp(-b**2/2) * temp
 
-    z = a * b
-    expz = np.exp(-z)
+    z = a*b
+    #expz = np.exp(-z)
     k = 0
     #print(np.sum(np.isnan(expz)), np.sum(np.isinf(expz)))
     #print(np.sum(np.isnan(iv(0, z))), np.sum(np.isinf(iv(0, z))))
+    #print(np.min(expz), np.min(z), np.min(a), np.min(b), np.max(z), np.max(a), np.max(b))
     if np.all(a < b):
 
         s = 1
         c = 0
         x = a/b
         d = x
-        S = iv(0, z) * expz
+        S = ive(0, z)
 
         for k in range(1, M):
 
-            S += (d + 1/d) * iv(k, z) * expz
+            S += (d + 1/d) * ive(k, z)
             d = d * x
 
         k += 1
@@ -133,7 +160,7 @@ def _marcumq(a, b, M, eps=10**-10):
 
     while np.all(cond):
 
-        t = d * iv(k, z) * expz
+        t = d * ive(k, z)
         S += t
         d = d * x
         k += 1
@@ -167,17 +194,18 @@ def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005):
             cdf[idx] = np.array(1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N))
 
     # Find outliers and clip them to the confidence interval limits
-    print(np.sum(cdf < alpha/2), np.sum(cdf > 1 - alpha/2), np.sum(np.logical_or(alpha/2 < cdf, cdf < 1 - alpha/2)))
-    print(np.sum(np.isnan(cdf)), np.sum(np.isinf(cdf)))
-    cdf[np.isnan(cdf)] = 0
-    cdf[np.isinf(cdf)] = 1
+    #print(np.sum(cdf < alpha/2), np.sum(cdf > 1 - alpha/2), np.sum(np.logical_or(alpha/2 < cdf, cdf < 1 - alpha/2)))
+    #print(np.sum(np.isnan(cdf)), np.sum(np.isinf(cdf)))
+    #cdf[np.isnan(cdf)] = 0
+    #cdf[np.isinf(cdf)] = 1
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
 
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-10):
+def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-12):
 
+    m = m.astype('float64')
     delta = _beta(N) * sigma - m
     out = np.zeros_like(delta)
     t0 = np.zeros_like(delta)
@@ -185,6 +213,13 @@ def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-10):
     ind = np.zeros_like(delta, dtype=np.bool)
 
     for idx in [delta < 0, delta > 0]:
+
+        if np.all(delta[idx] > 0):
+            print ("delta > 0", np.sum(idx))
+        elif np.all(delta[idx] < 0):
+            print ("delta < 0", np.sum(idx))
+        else:
+            print("oups")
 
         #if delta == 0:
         #    return 0
@@ -202,7 +237,8 @@ def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-10):
         n_iter = 0
         #print(t0.shape, t1.shape, idx.shape)
         ind[idx] = np.abs(t0[idx] - t1[idx]) > eps
-
+        #print(np.sum(np.isnan(t1[idx])), "t1")
+        #print(np.sum(np.isnan(delta)), "delta")
         #while np.any(np.abs(t0 - t1) > eps):
         while np.any(ind):
 
@@ -228,7 +264,7 @@ def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-10):
     #return t1
 
 
-def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-10):
+def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
     """
     A routine for finding the underlying gaussian distribution standard
     deviation from magnitude signals.
