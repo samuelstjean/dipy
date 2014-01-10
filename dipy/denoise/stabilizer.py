@@ -55,7 +55,12 @@ def main():
 
     max_val = data.max()
     min_val = data.min()
-    dtype = np.int16 # data.dtype
+    dtype = data.dtype
+
+    # Since negatives are allowed, convert uint to int
+    if dtype.kind == 'u':
+        dtype = dtype.name[1:]
+
     ##data = (data - min_val) / (max_val - min_val)
 
     if args.savename is None:
