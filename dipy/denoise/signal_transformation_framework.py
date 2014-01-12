@@ -66,8 +66,14 @@ def _marcumq(a, b, M, eps=10**-16):
         return np.ones_like(b)
 
     if np.all(a == 0):
-        k = np.arange(M)
-        return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
+        #k = np.arange(M)
+        #return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
+
+        temp = 0
+        for k in range(M):
+            temp += b**(2*k) / (2**k * factorial(k))
+
+        return np.exp(-b**2/2) * temp
 
     z = a * b
     expz = np.exp(-z)

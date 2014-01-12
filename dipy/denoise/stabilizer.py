@@ -53,7 +53,7 @@ def main():
     args = parser.parse_args()
 
     vol = nib.load(args.input)
-    data = vol.get_data()#[30:100,30:100, 30:40, :20]
+    data = vol.get_data().astype('float64') #[30:100,30:100, 30:40, :20]
     header = vol.get_header()
     affine = vol.get_affine()
 
@@ -103,7 +103,7 @@ def main():
     #mean_slice = np.mean(data.swapaxes(-1, -2), axis=tuple(range(data.ndim-1)))
     #print(mean_slice.shape)
 
-    for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice):
+    for idx in range(5): ##range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice):
         print("Now processing slice", idx+1, "out of", data.shape[-2])
         sigma[idx] = piesno(data[..., idx, :],  N)
         #eta[idx] = fixed_point_finder(mean_slice[idx], sigma[idx], N)
