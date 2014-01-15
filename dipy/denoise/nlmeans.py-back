@@ -15,29 +15,6 @@ def get_block(arr, center, radius):
                cz - radius - 1: cz + radius]
 
 
-def padding(A, radius):
-    """
-    Pad A with radius-1 elements on each side in a reflecting manner.
-    """
-
-    shape = np.array(A.shape)
-    padded = np.zeros(shape + 2*(radius - 1))
-
-    padded[:radius-1, :radius-1, :radius-1] = A[:radius-1, :radius-1, :radius-1:][::-1]
-    padded[-1:-radius:-1, -1:-radius:-1, -1:-radius:-1] = A[-1:-radius:-1, -1:-radius:-1, -1:-radius:-1][::-1]
-
-    padded[:radius-1, :radius-1, :radius-1] = A[:radius-1, :radius-1, :radius-1:][::-1]
-    padded[-1:-radius:-1, -1:-radius:-1, -1:-radius:-1] = A[-1:-radius:-1, -1:-radius:-1, -1:-radius:-1][::-1]
-
-    padded[:radius-1, :radius-1, :radius-1] = A[:radius-1, :radius-1, :radius-1:][::-1]
-    padded[-1:-radius:-1, -1:-radius:-1, -1:-radius:-1] = A[-1:-radius:-1, -1:-radius:-1, -1:-radius:-1][::-1]
-
-    padded[:radius-1, :radius-1, :radius-1] = A[:radius-1, :radius-1, :radius-1:][::-1]
-    padded[-1:-radius:-1, -1:-radius:-1, -1:-radius:-1] = A[-1:-radius:-1, -1:-radius:-1, -1:-radius:-1][::-1]
-
-    return padded
-
-
 def nlmeans(image, patch_size=3, block_size=11, sigma=None, ncoils=1):
 
     if sigma is None:
@@ -57,7 +34,7 @@ def nlmeans(image, patch_size=3, block_size=11, sigma=None, ncoils=1):
     #print(out.shape)
     #print("fin")
 
-    for idx in ndindex(image.shape):
+    for idx in ndindex(shape):
 
         idx = np.array(idx) + block_size - 1
         neighborhood = get_block(image, idx, (block_size-1)/2)
@@ -83,6 +60,6 @@ def nlmeans(image, patch_size=3, block_size=11, sigma=None, ncoils=1):
         out[out < 0] = 0
 
     # unpad out
-    out = out[radius:shape[0]-radius, radius:shape[1]-radius, radius:shape[2]-radius]
+    out = out[block_size:shape[0]-block_size, block_size:shape[1]-block_size, block_size:shape[2]-block_size]
 
     return np.sqrt(out)

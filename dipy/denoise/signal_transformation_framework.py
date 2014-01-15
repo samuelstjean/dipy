@@ -154,7 +154,7 @@ def _marcumq(a, b, M, eps=10**-12):
         x = b/a
         k = M
         d = x**M
-        S = np.zeros_like(z)
+        S = np.zeros_like(z, dtype=np.float64)
 
     cond = True  # np.ones_like(z, dtype=np.bool)
 
@@ -280,13 +280,13 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
         same realisation of the volume, such as dMRI or fMRI data.
 
     N : int
-        The number of phase array coils of the mr scanner
+        The number of phase array coils of the mr scanner.
 
     alpha : float
         Probabilistic estimation threshold for the gamma function.
 
     l : int
-        number of initial estimates for sigma to try
+        number of initial estimates for sigma to try.
 
     itermax : int
         Maximum number of iterations to execute if convergence
