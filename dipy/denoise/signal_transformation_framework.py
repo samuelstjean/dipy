@@ -4,6 +4,8 @@ import numpy as np
 
 from scipy.special import erfinv, hyp1f1, ive, gammainccinv
 from scipy.misc import factorial, factorial2
+from scipy.stats import mode
+from dipy.core.ndindex import ndindex
 #import mpmath as mp
 #from scipy.integrate import quad, romberg, romb
 #from scipy import stats
@@ -38,7 +40,26 @@ def _inv_nchi_cdf(N, K, alpha):
 
 
 def _beta(N):
-    return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
+    # Real formula is below, but LUT is faster since N is fixed at the beginning
+    # Other values of N can be easily added by simply using the last line
+    # and then addign them to values.
+
+    values = {1: 1.25331413732,
+              2: 1.87997120597,
+              4: 2.74162467538,
+              6: 3.39276053578,
+              8: 3.93802562189,
+              12: 4.84822789808,
+              16: 5.61283938922,
+              20: 6.28515420794,
+              24: 6.89221524065,
+              36: 8.45587062694,
+              48: 9.77247710766,
+              64: 11.2916332015}
+
+    return values[N]
+
+    #return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
 
 
 def _xi(eta, sigma, N):
@@ -174,6 +195,101 @@ def _marcumq(a, b, M, eps=10**-12):
 #class ncx(stats.rv_continuous):
 #    def _pdf(self, m, eta, sigma, N):
 #        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
+
+
+def estimate_sigma_grappa(data, grappa_kernel_W=None, cov_matrix=None, L=12, r=2, n=3):
+    """Estimation of the standard deviation of noise in parallel MRI.
+
+    data : Data to esttimate the noise variance from
+
+    theta : LxL covariance matrix of GRAPPA reconstruction weights (eq. 15-16)
+
+    L : Number of channel in the receiver coils
+
+    r : GRAPPA acceleration factor
+
+    n : Radius of the neighboorhood used to estimate m2
+    """
+
+    if grappa_kernel_W is None and cov_matrix is None:
+        theta = np.eye(L)
+    else:
+        if not grappa_kernel_W.shape == (L, L):
+            raise ValueError("GRAPPA kernel matrix must be of shape %ix%i, \
+                but is of shape" % L, grappa_kernel_W.shape)
+
+        if not cov_matrix.shape == (L, L):
+            raise ValueError("Covariance matrix must be of shape %ix%i, \
+                but is of shape" % L, cov_matrix.shape)
+
+        theta = np.dot(np.dot(grappa_kernel_W, cov_matrix), grappa_kernel_W.T)
+
+    m2 = _estimate_m2(data, n)
+
+    #m2 = _expected_m2(sigma2n, trace_theta)
+    #sigma2n = _sigma2n(m2, trace_theta)
+
+    return np.sqrt(_sigma2_eff(theta, m2, L))
+
+
+def _estimate_m2(data, n):
+
+    #padded = np.pad(data, (n, n), mode='reflect')
+    #m2 = np.zeros_like(padded, dtype=np.float64)
+
+    # pad, mais on veut juste padder 3D en realite et utiliser toutes les DWIs
+    padded = np.pad(data[..., data.shape[-1]:-2*n], (n, n), mode='reflect')
+    m2 = np.zeros((padded.shape, data.shape[-1]), dtype=np.float64)
+
+    for idx in (data.shape[-1]):
+
+        a = np.array(idx) + (n - 1)
+        b = a + 2 * n + 1
+        m2[idx] = np.mean(padded[a:b,
+                                 a:b,
+                                 a:b, :]**2)
+        print(idx,a,b)
+
+    return m2[n:-n, n:-n, n:-n, :]
+
+
+#def _L_eff(L, A, sigma2):
+# Eq. 17 p.4
+
+
+#def _sigma2_eff(phi, sigma2b, sigma2s):
+# Eq. 33 p.4
+#    return phi * sigma2b + (1 - phi) * sigma2s
+
+
+def _sigma2_eff(theta, m2, L):
+# Eq. 35 p. 6
+    trace_theta = np.trace(theta)
+    sigma2n = 0.5 * mode(m2/trace_theta, axis=None)
+    print(sigma2n)
+    sigma2n = sigma2n[0]
+    tts = trace_theta * sigma2n
+
+    return sigma2n * ((tts)/(m2 - tts) * (np.abs(np.sum(theta))/L)
+        + ((1 - tts)/(m2 - tts)) * np.sum(theta**2)/trace_theta)
+
+#def _SNR2(A, L, sigma2):
+
+
+#def _phin(sigma2n, trace_theta, m2):
+# Eq. 34 p.6
+#    tts = trace_theta * sigma2n
+#    return tts / (m2 - tts)
+
+
+#def _expected_m2(sigma2n, trace_theta):
+# Eq. 30 p. 5
+#    return 2 * sigma2n * trace_theta
+
+
+#def _sigma2n(m2, trace_theta):
+# Eq. 32 p. 5
+#    return 0.5 * mode(m2/trace_theta)
 
 
 def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005):
