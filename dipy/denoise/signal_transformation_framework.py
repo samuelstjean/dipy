@@ -2,10 +2,11 @@ from __future__ import division, print_function
 
 import numpy as np
 
-from scipy.special import erfinv, hyp1f1, ive, gammainccinv
+from scipy.special import erfinv, hyp1f1, iv, ive, gammainccinv
 from scipy.misc import factorial, factorial2
 from scipy.stats import mode
-from dipy.core.ndindex import ndindex
+from scipy.linalg import svd
+#from dipy.core.ndindex import ndindex
 #import mpmath as mp
 #from scipy.integrate import quad, romberg, romb
 #from scipy import stats
@@ -42,7 +43,7 @@ def _inv_nchi_cdf(N, K, alpha):
 def _beta(N):
     # Real formula is below, but LUT is faster since N is fixed at the beginning
     # Other values of N can be easily added by simply using the last line
-    # and then addign them to values.
+    # and then adding them to values.
 
     values = {1: 1.25331413732,
               2: 1.87997120597,
@@ -200,7 +201,7 @@ def _marcumq(a, b, M, eps=10**-12):
 def estimate_sigma_grappa(data, grappa_kernel_W=None, cov_matrix=None, L=12, r=2, n=3):
     """Estimation of the standard deviation of noise in parallel MRI.
 
-    data : Data to esttimate the noise variance from
+    data : Data to estimate the noise variance from
 
     theta : LxL covariance matrix of GRAPPA reconstruction weights (eq. 15-16)
 
@@ -427,14 +428,14 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
     """
 
     # Initial estimation of sigma
-    m = np.median(data)
+    denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, 1/2))
+    m = np.median(data) / denom
 
     phi = np.arange(1, l + 1) * m/l
     K = data.shape[-1]
     sum_m2 = np.sum(data**2, axis=-1)
 
     sigma = np.zeros_like(phi)
-    denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, 1/2))
 
     lambda_minus = _inv_nchi_cdf(N, K, alpha/2)
     lambda_plus = _inv_nchi_cdf(N, K, 1 - alpha/2)
@@ -473,3 +474,69 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
         sigma[num] = sig
 
     return sigma[pos]
+
+
+def _chi(SNR):
+    return 2 + SNR**2 - np.pi/8 * np.exp(-SNR**2/2) * ((2 + SNR**2) * iv(0, SNR**2/4) + SNR**2 * iv(1, SNR**2/4))**2
+
+
+def estimate_noise_field(data, radius=1):
+    """Estimates the noise field using B0s or DWIs and PCA."""
+
+    b0s = data[..., 0]
+    dwis = data[..., 1:]
+    dwis = np.reshape(dwis, (dwis.shape[-1], -1))
+    print(dwis.shape)
+
+    mean = np.mean(dwis, axis=0, keepdims=True)
+    dwis -= mean
+    sigma = np.dot(dwis, dwis.T) / dwis.shape[-1]
+    #sub = mean/np.sqrt(dwis.shape[-1] - 1)
+    #dwis -= sub
+    #print(mean.shape, sigma.shape)
+    U, s, Vt = svd(sigma)
+    # noise = np.dot(U[:, -1], dwis).reshape(data.shape[:-1], -1)
+    print(U.shape, Vt.shape, np.sum(np.abs(U-Vt.T)))
+
+
+
+
+
+
+
+
+    #Compute mean and covariance
+    mean = dwis.mean(axis=0, keepdims=True)
+    #data_cov = np.cov(dataset, rowvar=0)
+    #Add a small constant on the diagonal, to regularize
+    #data_cov += np.diag(regularizer*np.ones(input_size))
+    #Compute the principal components
+    #dwis -= mean
+    data_cov = np.cov(dwis, rowvar=1) #np.dot(dwis, dwis.T) / (dwis.shape[1] - 1)
+    w,v = np.linalg.eigh(data_cov)
+    s = (-w).argsort()
+    w = w[s]
+    v = v[:,s]
+
+    #Convert arrays to garrays to use the GPU for the whitening process
+    #projection = gpu.garray(v)
+    #scaling = gpu.garray(1./np.sqrt(w))
+    #transform = scaling.reshape((1,-1))*projection
+
+    #ZCA whitening
+    print((dwis-mean).shape, v.shape)
+    return np.dot(v, np.dot(v, dwis-mean)).reshape(data.shape[:-1] + (-1,))
+
+
+
+
+
+
+
+
+    #return dwis.reshape(data.shape[:-1] + (-1,))
+    #dwis += mean
+    return np.dot(U, dwis).reshape(data.shape[:-1] + (-1,))
+    #s_noise = np.zeros_like(s)
+    #s_noise[-1] = s[-1]
+    #noise = np.dot(U * s_noise, Vt) += sub
