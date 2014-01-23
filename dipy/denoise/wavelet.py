@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 
 import numpy as np
-from dipy.denoise.ornlm import upfir
+from dipy.denoise.filters import upfir, firdn
 
 
 def permutationInverse(perm):
@@ -15,7 +15,7 @@ def sfb3D_A(lo, hi, sf, d):
     lpf = sf[:, 0]
     hpf = sf[:, 1]
     # permute dimensions of lo and hi so that dimension d is first.
-    p = [(i + d) % 3 for i in xrange(3)]
+    p = [(i + d) % 3 for i in range(3)]
     lo = lo.transpose(p)
     hi = hi.transpose(p)
 
@@ -23,7 +23,7 @@ def sfb3D_A(lo, hi, sf, d):
     N = 2 * N1
     L = sf.shape[0]
     y = np.zeros((N + L - 2, N2, N3))
-    for k in xrange(N3):
+    for k in range(N3):
         y[:, :, k] = (np.array(upfir(lo[:, :, k], lpf)) +
                       np.array(upfir(hi[:, :, k], hpf)))
 
@@ -76,7 +76,7 @@ def afb3D_A(x, af, d):
     hpf = af[:, 1]
 
     # permute dimensions of x so that dimension d is first.
-    p = [(i + d) % 3 for i in xrange(3)]
+    p = [(i + d) % 3 for i in range(3)]
     x = x.transpose(p)
 
     # filter along dimension 0
@@ -86,13 +86,13 @@ def afb3D_A(x, af, d):
     n1Half = N1 // 2
     lo = np.zeros((L + n1Half, N2, N3))
     hi = np.zeros((L + n1Half, N2, N3))
-    for k in xrange(N3):
+    for k in range(N3):
         lo[:, :, k] = firdn(x[:, :, k], lpf)
 
     lo[:L] = lo[:L] + lo[n1Half:n1Half+L, :, :]
     lo = lo[:n1Half, :, :]
 
-    for k in xrange(N3):
+    for k in range(N3):
         hi[:, :, k] = firdn(x[:, :, k], hpf)
 
     hi[:L] = hi[:L]+hi[n1Half:n1Half+L, :, :]
