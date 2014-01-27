@@ -6,6 +6,9 @@ from scipy.special import erfinv, hyp1f1, iv, ive, gammainccinv
 from scipy.misc import factorial, factorial2
 from scipy.stats import mode
 from scipy.linalg import svd
+
+from dipy.denoise.noise_field import _noise_field
+
 #from dipy.core.ndindex import ndindex
 #import mpmath as mp
 #from scipy.integrate import quad, romberg, romb
@@ -488,9 +491,10 @@ def estimate_noise_field(data, radius=1):
     dwis = np.reshape(dwis, (dwis.shape[-1], -1))
     print(dwis.shape)
 
-    mean = np.mean(dwis, axis=0, keepdims=True)
+    mean = np.mean(dwis, axis=1, keepdims=True)
     dwis -= mean
-    sigma = np.dot(dwis, dwis.T) / dwis.shape[-1]
+    sigma = np.dot(dwis, dwis.T) / (dwis.shape[-1] - 1)
+    #sigma = dwis.T / np.sqrt(dwis.shape[-1] - 1)
     #sub = mean/np.sqrt(dwis.shape[-1] - 1)
     #dwis -= sub
     #print(mean.shape, sigma.shape)
@@ -505,38 +509,55 @@ def estimate_noise_field(data, radius=1):
 
 
 
-    #Compute mean and covariance
-    mean = dwis.mean(axis=0, keepdims=True)
-    #data_cov = np.cov(dataset, rowvar=0)
-    #Add a small constant on the diagonal, to regularize
-    #data_cov += np.diag(regularizer*np.ones(input_size))
-    #Compute the principal components
-    #dwis -= mean
-    data_cov = np.cov(dwis, rowvar=1) #np.dot(dwis, dwis.T) / (dwis.shape[1] - 1)
-    w,v = np.linalg.eigh(data_cov)
-    s = (-w).argsort()
-    w = w[s]
-    v = v[:,s]
+    # #Compute mean and covariance
+    # dwis = dwis.T
+    # mean = dwis.mean(axis=0, keepdims=True)
+    # data_cov = np.cov(dwis, rowvar=0)
+    # #Add a small constant on the diagonal, to regularize
+    # #data_cov += np.diag(regularizer*np.ones(input_size))
+    # #Compute the principal components
+    # dwis -= mean
+    # data_cov = np.cov(dwis, rowvar=1) #np.dot(dwis, dwis.T) / (dwis.shape[1] - 1)
+    # w,v = np.linalg.eigh(data_cov)
+    # s = (-w).argsort()
+    # w = w[s]
+    # v = v[:,s]
 
-    #Convert arrays to garrays to use the GPU for the whitening process
-    #projection = gpu.garray(v)
-    #scaling = gpu.garray(1./np.sqrt(w))
-    #transform = scaling.reshape((1,-1))*projection
+    # #Convert arrays to garrays to use the GPU for the whitening process
+    # #projection = gpu.garray(v)
+    # #scaling = gpu.garray(1./np.sqrt(w))
+    # #transform = scaling.reshape((1,-1))*projection
 
-    #ZCA whitening
-    print((dwis-mean).shape, v.shape)
-    return np.dot(v, np.dot(v, dwis-mean)).reshape(data.shape[:-1] + (-1,))
-
-
-
+    # #ZCA whitening
+    # #print((dwis-mean).shape, v.shape)
+    # return np.dot(v, np.dot(v, dwis-mean)).reshape(data.shape[:-1] + (-1,))
 
 
 
-
-
+    #noise_comp = np.zeros_like(U)
+    #noise_comp[..., -1] = U[..., -1]
+    #noise_comp = U[-1:, ...]
+    noise_comp = U[..., -1:]#[..., None]
+   # noise_comp = Vt[...,-1:].T
+    print(noise_comp.shape)
+    #noise_comp = U
+    #recon = np.dot(noise_comp.T, np.dot(noise_comp, dwis)) #+ mean
+    #recon = np.dot(noise_comp, np.dot(noise_comp.T, dwis)) + mean
+    recon = np.dot(noise_comp.T, dwis) + mean
     #return dwis.reshape(data.shape[:-1] + (-1,))
     #dwis += mean
-    return np.dot(U, dwis).reshape(data.shape[:-1] + (-1,))
+
+    #noise_comp = np.zeros_like(U)
+    #noise_comp[..., -1:] = U[..., -1:]
+    #recon = np.dot(noise_comp, np.dot(noise_comp.T, dwis)) + mean
+
+    noise_field = recon.reshape(data.shape[:-1] + (-1,))
+
+
+
+
+
+    return _noise_field(noise_field, radius)
     #s_noise = np.zeros_like(s)
     #s_noise[-1] = s[-1]
     #noise = np.dot(U * s_noise, Vt) += sub
