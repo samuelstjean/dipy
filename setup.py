@@ -74,7 +74,8 @@ for modulename, other_sources in (
     ('dipy.reconst.quick_squash', []),
     ('dipy.tracking.distances', []),
     ('dipy.tracking.vox2track', []),
-    ('dipy.tracking.propspeed', [])):
+    ('dipy.denoise.denspeed', []),
+    ('dipy.denoise.noise_field', [])):
     pyx_src = pjoin(*modulename.split('.')) + '.pyx'
     EXTS.append(Extension(modulename,[pyx_src] + other_sources,
                           include_dirs = [np.get_include(),

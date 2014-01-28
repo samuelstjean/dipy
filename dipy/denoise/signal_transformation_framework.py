@@ -7,7 +7,7 @@ from scipy.misc import factorial, factorial2
 from scipy.stats import mode
 from scipy.linalg import svd
 
-from dipy.denoise.noise_field import _noise_field
+from dipy.denoise.denspeed import noise_field
 
 #from dipy.core.ndindex import ndindex
 #import mpmath as mp
@@ -479,10 +479,6 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
     return sigma[pos]
 
 
-def _chi(SNR):
-    return 2 + SNR**2 - np.pi/8 * np.exp(-SNR**2/2) * ((2 + SNR**2) * iv(0, SNR**2/4) + SNR**2 * iv(1, SNR**2/4))**2
-
-
 def estimate_noise_field(data, radius=1):
     """Estimates the noise field using B0s or DWIs and PCA."""
 
@@ -551,13 +547,13 @@ def estimate_noise_field(data, radius=1):
     #noise_comp[..., -1:] = U[..., -1:]
     #recon = np.dot(noise_comp, np.dot(noise_comp.T, dwis)) + mean
 
-    noise_field = recon.reshape(data.shape[:-1] + (-1,))
+    noise = recon.reshape(data.shape[:-1] + (-1,))
 
 
 
 
 
-    return _noise_field(noise_field, radius)
+    return noise_field(noise, radius)
     #s_noise = np.zeros_like(s)
     #s_noise[-1] = s[-1]
     #noise = np.dot(U * s_noise, Vt) += sub
