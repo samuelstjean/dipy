@@ -7,14 +7,15 @@ from scipy.misc import factorial, factorial2
 from scipy.stats import mode
 from scipy.linalg import svd
 
-from dipy.denoise.denspeed import noise_field
+from dipy.denoise.denspeed import noise_field, add_padding_reflection, remove_padding
 
 #from dipy.core.ndindex import ndindex
 #import mpmath as mp
 #from scipy.integrate import quad, romberg, romb
 #from scipy import stats
 
-#from dipy.core.ndindex import ndindex
+from dipy.core.ndindex import ndindex
+from time import time
 
 
 def _inv_cdf_gauss(y, eta, sigma):
@@ -67,50 +68,10 @@ def _beta(N):
 
 
 def _xi(eta, sigma, N):
-    ##print(np.sum(np.isnan(eta**2)), np.sum(np.isnan(hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))))
     return 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
-    # out = 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
-
-    # print(np.sum(np.isnan(out)), np.sum(np.isinf(out)), "in")
-    # idx = np.logical_or(np.isnan(out), np.isinf(out))
-    # out[idx] = eta[idx]
-
-
-    # #hyp = np.frompyfunc(mp.hyp1f1, 3, 1)
-    # #out[idx] = np.array(hyp(-0.5, N, -eta[idx]**2/(2*sigma**2)), dtype=np.float64)
-    # #out[idx] = 2*N + eta[idx]**2/sigma**2 - (_beta(N) * out[idx])**2
-
-    # #_dtype_object = np.dtype('object')
-    # #_cfunc_mpf = np.vectorize(mp.mpf, otypes=(_dtype_object,))
-    # #func = _cfunc_mpf
-    # #tmp = eta[idx]
-    # #res = func(tmp)
-    # #res2 = 2*N + tmp**2/sigma**2 - (_beta(N) * mp.hyp1f1(-0.5, N, -tmp**2/(2*sigma**2)))**2
-    # #out[idx] = res2
-    # #print(np.sum(np.isnan(res2)), np.sum(np.isinf(res2)), "out")
-    # print(np.sum(np.isnan(out)), np.sum(np.isinf(out)), "out")
-    # return out
-
-    # hyp = np.frompyfunc(mp.hyp1f1, 3, 1)
-    # out = 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
-    # out[np.isnan(out)] = np.array(hyp(-0.5, N, -eta[np.isnan(out)]**2/(2*sigma**2)), dtype=np.float64)
-    # print(np.sum(np.isnan(out)))
-    # print(np.sum(np.isnan(2*N + eta**2/sigma**2 - (_beta(N) * out)**2)))
-    # return 2*N + eta**2/sigma**2 - (_beta(N) * out)**2
-
-    # out = np.zeros_like(eta)
-    # div = 2*sigma**2
-
-    # for idx in np.ndindex(eta.shape):
-    #     out[idx] = hyp1f1(-0.5, N, -eta[idx]**2/div)
-
-    # return 2*N + eta**2/sigma**2 - (_beta(N) * out)**2
 
 
 def _fixed_point_g(eta, m, sigma, N):
-    #print(np.sum(np.isnan(_xi(eta, sigma, N))))
-    #print(np.sum(np.sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2) < 0))
-    #print(np.sum(np.isinf(_xi(eta, sigma, N))), np.sum(np.isinf(np.sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2))))
     return np.sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
 
 
@@ -123,16 +84,6 @@ def _fixed_point_k(eta, m, sigma, N):
                    hyp1f1(-0.5, N, -eta**2/(2*sigma**2)) *
                    hyp1f1(0.5, N+1, -eta**2/(2*sigma**2))) - fpg
 
-    #print(np.max(eta), np.min(eta), np.min(-eta**2/(2*sigma**2)), np.max(-eta**2/(2*sigma**2)))
-    #idx = np.logical_or(np.isnan(denom), np.isinf(denom))
-    #out[idx] = eta[idx]
-    #hyp = np.frompyfunc(mp.hyp1f1, 3, 1)
-    #denom[idx] = np.array(eta[idx] * (1 - ((_beta(N)**2)/(2*N)) *
-    #                      hyp(-0.5, N, -eta[idx]**2/(2*sigma**2)) *
-    #                      hyp(0.5, N+1, -eta[idx]**2/(2*sigma**2))) - fpg[idx], dtype=np.float64)
-
-    #print(np.sum(np.isnan(eta - num / denom)), np.sum(np.isinf(eta - num / denom)), "fpk")
-    #print(np.sum(np.isnan(eta)), np.sum(np.isnan(num)), np.sum(np.isnan(denom)))
     return eta - num / denom
 
 
@@ -195,22 +146,14 @@ def _marcumq(a, b, M, eps=10**-12):
     return c + s * np.exp(-0.5 * (a-b)**2) * S
 
 
-#vec_cdf_nchi = np.vectorize(_cdf_nchi, otypes=["float64"], cache=True)
-#class ncx(stats.rv_continuous):
-#    def _pdf(self, m, eta, sigma, N):
-#        return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
-
-
-def estimate_sigma_grappa(data, grappa_kernel_W=None, cov_matrix=None, L=12, r=2, n=3):
+def estimate_sigma_grappa(data, grappa_kernel_W=None, cov_matrix=None, L=12, n=3):
     """Estimation of the standard deviation of noise in parallel MRI.
 
     data : Data to estimate the noise variance from
 
     theta : LxL covariance matrix of GRAPPA reconstruction weights (eq. 15-16)
 
-    L : Number of channel in the receiver coils
-
-    r : GRAPPA acceleration factor
+    L : Number of channels in the receiver coils
 
     n : Radius of the neighboorhood used to estimate m2
     """
@@ -232,29 +175,41 @@ def estimate_sigma_grappa(data, grappa_kernel_W=None, cov_matrix=None, L=12, r=2
 
     #m2 = _expected_m2(sigma2n, trace_theta)
     #sigma2n = _sigma2n(m2, trace_theta)
-
+    #return m2
     return np.sqrt(_sigma2_eff(theta, m2, L))
 
 
 def _estimate_m2(data, n):
 
-    #padded = np.pad(data, (n, n), mode='reflect')
+    padded = np.pad(data, ((n, n), (n, n), (n, n), (0, 0)), mode='reflect')  #add_padding_reflection(data[..., 0], n)
     #m2 = np.zeros_like(padded, dtype=np.float64)
 
+    m2 = np.zeros_like(data[..., 0], dtype=np.float64)
+    deb = time()
+    for idx in ndindex(m2.shape):
+        m2[idx] = np.mean(padded[idx[0]-n:idx[0]+n+1,
+                                 idx[1]-n:idx[1]+n+1,
+                                 idx[2]-n:idx[2]+n+1, :]**2)
+        #print(idx, m2[idx])
+    print("total", time() - deb)
+    #m2[np.isnan(m2)] = 0
+    return m2
     # pad, mais on veut juste padder 3D en realite et utiliser toutes les DWIs
-    padded = np.pad(data[..., data.shape[-1]:-2*n], (n, n), mode='reflect')
-    m2 = np.zeros((padded.shape, data.shape[-1]), dtype=np.float64)
+    # for idx in range(data.shape[-1]):
+    #     padded = np.pad(data[..., idx], (n, n), mode='reflect')
 
-    for idx in (data.shape[-1]):
+    # m2 = np.zeros((padded.shape, data.shape[-1]), dtype=np.float64)
 
-        a = np.array(idx) + (n - 1)
-        b = a + 2 * n + 1
-        m2[idx] = np.mean(padded[a:b,
-                                 a:b,
-                                 a:b, :]**2)
-        print(idx,a,b)
+    # for idx in range(data.shape[-1]):
 
-    return m2[n:-n, n:-n, n:-n, :]
+    #     a = np.array(idx) + (n - 1)
+    #     b = a + 2 * n + 1
+    #     m2[idx] = np.mean(padded[a:b,
+    #                              a:b,
+    #                              a:b, :]**2)
+    #     print(idx,a,b)
+
+    # return m2[n:-n, n:-n, n:-n, :]
 
 
 #def _L_eff(L, A, sigma2):
@@ -269,12 +224,17 @@ def _estimate_m2(data, n):
 def _sigma2_eff(theta, m2, L):
 # Eq. 35 p. 6
     trace_theta = np.trace(theta)
-    sigma2n = 0.5 * mode(m2/trace_theta, axis=None)
+
+    # Cheap mode
+    round_m2 = np.round(m2).astype(np.int64)
+    mode_m2 = np.bincount(round_m2[round_m2 > 0]).argmax()
+
+    sigma2n = 0.5 * mode_m2 / trace_theta #mode(m2/trace_theta, axis=None)
     print(sigma2n)
-    sigma2n = sigma2n[0]
+    #sigma2n = sigma2n[0]
     tts = trace_theta * sigma2n
 
-    return sigma2n * ((tts)/(m2 - tts) * (np.abs(np.sum(theta))/L)
+    return sigma2n * (tts/(m2 - tts) * (np.abs(np.sum(theta))/L)
         + ((1 - tts)/(m2 - tts)) * np.sum(theta**2)/trace_theta)
 
 #def _SNR2(A, L, sigma2):
@@ -372,6 +332,7 @@ def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-12):
             ind[idx] = np.abs(t0[idx] - t1[idx]) > eps
 
             if n_iter > max_iter:
+                print("trop d'iter :(")
                 break
 
         if np.all(delta[idx] > 0):
@@ -459,7 +420,8 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
             s = sum_m2 / (2*K*sig**2)
             idx = np.logical_and(lambda_minus <= s, s <= lambda_plus)
             omega = data[idx, :]
-
+            #print('1  ', len(omega), omega_size, omega.size, type(omega_size), type(omega.size))
+            #print('2  ', np.sum(idx), 'idx')
             # If no point meets the criterion, exit
             if omega.size == 0:
                 omega_size = 0
@@ -473,10 +435,10 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
         # sigma amongst all initial estimates from phi
         if omega_size > max_length_omega:
             pos, max_length_omega = num, omega_size
-
+        #print('3  ', omega_size, omega.size, type(omega_size), type(omega.size))
         sigma[num] = sig
 
-    return sigma[pos]
+    return sigma[pos]  #, idx#[pos], idx
 
 
 def estimate_noise_field(data, radius=1):
@@ -539,21 +501,25 @@ def estimate_noise_field(data, radius=1):
     #noise_comp = U
     #recon = np.dot(noise_comp.T, np.dot(noise_comp, dwis)) #+ mean
     #recon = np.dot(noise_comp, np.dot(noise_comp.T, dwis)) + mean
-    recon = np.dot(noise_comp.T, dwis) + mean
+    recon = np.dot(noise_comp.T, dwis) #+ mean[-1]
     #return dwis.reshape(data.shape[:-1] + (-1,))
     #dwis += mean
-
+    print(recon.shape, noise_comp.shape, dwis.shape, mean.shape)
     #noise_comp = np.zeros_like(U)
     #noise_comp[..., -1:] = U[..., -1:]
     #recon = np.dot(noise_comp, np.dot(noise_comp.T, dwis)) + mean
 
-    noise = recon.reshape(data.shape[:-1] + (-1,))
+    #noise = recon.reshape(data.shape[:-1] + (-1,))
+    noise = recon.reshape(data.shape[:3])
 
+    print (noise.shape,"bla")
 
-
-
-
+    return noise
     return noise_field(noise, radius)
     #s_noise = np.zeros_like(s)
     #s_noise[-1] = s[-1]
     #noise = np.dot(U * s_noise, Vt) += sub
+
+
+def correction_scheme(data, N=12):
+    pass

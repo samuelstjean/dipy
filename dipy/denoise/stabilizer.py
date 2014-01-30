@@ -81,7 +81,7 @@ def main():
     for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice): in range(25,30): #
         print("Now processing slice", idx+1, "out of", data.shape[-2])
 
-        sigma[idx] = piesno(data[..., idx, :],  N)
+        sigma[idx] = piesno(data[..., idx, :],  N, l=1)
         eta[..., idx, :] = fixed_point_finder(data[..., idx, :], sigma[idx], N)
 
         #print(np.sum(np.isnan(eta)), np.sum(np.isinf(eta)))
