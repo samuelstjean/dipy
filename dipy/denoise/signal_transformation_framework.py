@@ -43,6 +43,21 @@ def _inv_nchi_cdf(N, K, alpha):
 # def _pdf_nchi(m, eta, sigma, N):
 #     return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
 
+def _optimal_quantile(N):
+    """Returns the optimal quantile order alpha for a known N"""
+
+    values = {1: 0.7968,
+              2: 0.7306,
+              4: 0.6722,
+              8: 0.6254,
+              16: 0.5900,
+              32: 0.5642,
+              64: 0.5456,
+              128: 0.5323}
+
+    return values[N]
+
+
 
 def _beta(N):
     # Real formula is below, but LUT is faster since N is fixed at the beginning
@@ -87,12 +102,12 @@ def _fixed_point_k(eta, m, sigma, N):
     return eta - num / denom
 
 
-def _marcumq(a, b, M, eps=10**-12):
+def _marcumq(a, b, M, eps=1e-10):
 
-    if np.all(b == 0):
+    if np.all(np.abs(b) < eps):
         return np.ones_like(b)
 
-    if np.all(a == 0):
+    if np.all(np.abs(a) < eps):
         #k = np.arange(M)
         #return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
 
@@ -256,7 +271,7 @@ def _sigma2_eff(theta, m2, L):
 #    return 0.5 * mode(m2/trace_theta)
 
 
-def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005):
+def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005, eps=1e-10):
 
     #cdf = np.clip(1 - _marcumq(eta/sigma, m/sigma, N), alpha/2, 1 - alpha/2)
 
@@ -265,10 +280,10 @@ def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005):
 
     # # eta = 0 => cdf is zero
     # if eta > 0:
-    for idx in [np.logical_and(eta/sigma < m/sigma, eta > 0),
-                np.logical_and(eta/sigma >= m/sigma, m > 0),
-                m == 0,
-                eta == 0]:
+    for idx in [np.logical_and(eta/sigma < m/sigma, np.abs(eta) > eps),
+                np.logical_and(eta/sigma >= m/sigma, np.abs(m) > eps),
+                np.abs(m) <= eps,
+                np.abs(eta) <= eps]:
 
         if cdf[idx].size > 0:
             cdf[idx] = np.array(1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N))
@@ -283,21 +298,20 @@ def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005):
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-12):
+def fixed_point_finder(m_hat, sigma, N=12, max_iter=500, eps=1e-10):
 
-    m = m.astype('float64')
-    delta = _beta(N) * sigma - m
+    m = np.array(m_hat, dtype=np.float64)
+    delta = _beta(N) * sigma - m_hat
     out = np.zeros_like(delta)
     t0 = np.zeros_like(delta)
     t1 = np.zeros_like(delta)
-    ind = np.zeros_like(delta, dtype=np.bool)
 
     for idx in [delta < 0, delta > 0]:
-
+        ###print(idx)
         if np.all(delta[idx] > 0):
-            print ("delta > 0", np.sum(idx))
+            print ("delta > 0", np.sum(delta[idx] > 0))
         elif np.all(delta[idx] < 0):
-            print ("delta < 0", np.sum(idx))
+            print ("delta < 0", np.sum(delta[idx] < 0))
         else:
             print("oups")
 
@@ -305,32 +319,40 @@ def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-12):
         #    return 0
 
         #if np.all(delta[idx] != 0):
-
+        #print(m)
         if np.all(delta[idx] > 0):
+            print("shift delta")
             m[idx] = _beta(N) * sigma + delta[idx]
-
+        #print(m)
         t0[idx] = m[idx]
         t1[idx] = _fixed_point_k(t0[idx], m[idx], sigma, N)
+        ###print(t0,t1)
+        ###print(_fixed_point_k(t1[idx], m[idx], sigma, N))
+        #1/0
         #t0 = m[idx]
         #t1 = _fixed_point_k(t0, m[idx], sigma, N)
 
         n_iter = 0
         #print(t0.shape, t1.shape, idx.shape)
+        ind = np.zeros_like(delta, dtype=np.bool)
         ind[idx] = np.abs(t0[idx] - t1[idx]) > eps
         #print(np.sum(np.isnan(t1[idx])), "t1")
         #print(np.sum(np.isnan(delta)), "delta")
         #while np.any(np.abs(t0 - t1) > eps):
+        ###print(ind,"ind in")
+        ###from copy import copy
         while np.any(ind):
 
             #t0 = t1
             #t1 = _fixed_point_k(t0, m[idx], sigma, N)
             #n_iter += 1
-
+            ###print(t0, t1, ind,"cas 1", np.abs(t0[idx] - t1[idx]))
+            ###print(t0.dtype, t1.dtype, ind,"dtype", np.abs(t0[idx] - t1[idx]).dtype)
             t0[ind] = t1[ind]
             t1[ind] = _fixed_point_k(t0[ind], m[ind], sigma, N)
             n_iter += 1
             ind[idx] = np.abs(t0[idx] - t1[idx]) > eps
-
+            ###print(t0, t1, ind, "cas 2")
             if n_iter > max_iter:
                 print("trop d'iter :(")
                 break
@@ -345,7 +367,7 @@ def fixed_point_finder(m, sigma, N=12, max_iter=500, eps=10**-12):
     #return t1
 
 
-def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
+def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
     """
     A routine for finding the underlying gaussian distribution standard
     deviation from magnitude signals.
@@ -400,7 +422,8 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
     sum_m2 = np.sum(data**2, axis=-1)
 
     sigma = np.zeros_like(phi)
-
+    mask = np.zeros(phi.shape + data.shape[:-1])
+    #print(mask.shape)
     lambda_minus = _inv_nchi_cdf(N, K, alpha/2)
     lambda_plus = _inv_nchi_cdf(N, K, 1 - alpha/2)
 
@@ -411,6 +434,7 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
 
         sig_prev = 0
         omega_size = 1
+        idx = np.zeros_like(sum_m2, dtype=np.bool)
 
         for n in range(itermax):
 
@@ -422,9 +446,11 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
             omega = data[idx, :]
             #print('1  ', len(omega), omega_size, omega.size, type(omega_size), type(omega.size))
             #print('2  ', np.sum(idx), 'idx')
+            ##print(np.sum(idx),"idx", np.shape(idx), np.shape(omega), np.shape(data), np.abs(sig - sig_prev))
             # If no point meets the criterion, exit
             if omega.size == 0:
                 omega_size = 0
+                ##print("vide", num,np.abs(sig - sig_prev),"\n")
                 break
 
             sig_prev = sig
@@ -434,11 +460,13 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=10**-12):
         # Remember the biggest omega array as giving the optimal
         # sigma amongst all initial estimates from phi
         if omega_size > max_length_omega:
-            pos, max_length_omega = num, omega_size
+            pos, max_length_omega, best_mask = num, omega_size, idx
         #print('3  ', omega_size, omega.size, type(omega_size), type(omega.size))
         sigma[num] = sig
+        mask[num] = idx
+        ##print(np.sum(idx), omega_size, "out")
 
-    return sigma[pos]  #, idx#[pos], idx
+    return sigma[pos], mask[pos]  #, idx#[pos], idx
 
 
 def estimate_noise_field(data, radius=1):
