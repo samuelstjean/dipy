@@ -10,6 +10,7 @@ import argparse
 
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
 from scipy.stats import mode
+from scipy.ndimage.filters import gaussian_filter
 
 DESCRIPTION = """
     Convenient script to transform noisy rician/chi-squared signals into
@@ -65,7 +66,12 @@ def main():
     ##data = (data - min_val) / (max_val - min_val)
     #print(data.min(), data.max())
     if args.savename is None:
-        temp, ext = str.split(os.path.basename(args.input), '.', 1)
+        #temp, ext = str.split(os.path.basename(args.input), '.', 1)
+        if os.path.basename(args.input).endswith('.nii'):
+            temp = os.path.basename(args.input)[:-4]
+        elif os.path.basename(args.input).endswith('.nii.gz'):
+            temp = os.path.basename(args.input)[:-7]
+
         filename = os.path.dirname(os.path.realpath(args.input)) + '/' + temp + "_stabilized.nii.gz"
 
     else:
@@ -83,7 +89,7 @@ def main():
     for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice): in range(25,30): #
         print("Now processing slice", idx+1, "out of", data.shape[-2])
 
-        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N, l=50)
+        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N=N, l=50)
         ######m_hat = np.mean(data, axis=-1)
         ######eta[..., idx, :] = fixed_point_finder(m_hat, sigma[idx], N)
 
@@ -93,20 +99,26 @@ def main():
         #eta[np.isnan(eta)] = data[np.isnan(eta)]
         #print(np.sum(np.isnan(eta)), np.sum(np.isinf(eta)))
         #######data_stabilized[..., idx, :] = chi_to_gauss(data[..., idx, :], eta[..., idx, :], sigma[idx], N)
+    print(sigma) #,"N=1 for piesno noise detection!")
 
     sigma_mode = mode(sigma, axis=None)[0]
 
-
+    nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + 'mask_noise.nii.gz')
+   # print(sigma_mode)
+    #sigma_mode = 20#N * np.max(sigma)
     print(sigma_mode)
-    sigma_mode *= N #np.max(sigma)
-    print(sigma_mode)
+    #1/0
+    ###m_hat = np.mean(data, axis=-1, keepdims=True)
 
-    m_hat = np.mean(data, axis=-1, keepdims=True)
+
+
+
+    ###m_hat = data
     eta = fixed_point_finder(m_hat, sigma_mode, N)
-    eta = np.repeat(eta, data.shape[-1], axis=-1)
-    eta[..., 0] = data[..., 0]
+    ###eta = np.repeat(eta, data.shape[-1], axis=-1)
+    ###eta[..., 0] = data[..., 0]
     print(data.shape,m_hat.shape,eta.shape)
-    nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta')
+    #nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta')
 
         #eta[..., idx, :] = fixed_point_finder(data[..., idx, :], sigma[idx], N)
 

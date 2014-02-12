@@ -7,9 +7,10 @@ from scipy.misc import factorial, factorial2
 from scipy.stats import mode
 from scipy.linalg import svd
 
-from dipy.denoise.denspeed import noise_field, add_padding_reflection, remove_padding
+from dipy.denoise.denspeed import noise_field
 
-#from dipy.core.ndindex import ndindex
+
+from dipy.core.ndindex import ndindex
 #import mpmath as mp
 #from scipy.integrate import quad, romberg, romb
 #from scipy import stats
@@ -551,3 +552,26 @@ def estimate_noise_field(data, radius=1):
 
 def correction_scheme(data, N=12):
     pass
+
+
+from scilpy.denoising.utils import _im2col_3d#, _col2im_3d
+def local_means(arr, radius=1):
+
+    if arr.ndim == 3:
+        arr = arr[..., None]
+
+    out = np.zeros_like(arr)
+
+    for i in range(arr.shape[-1]):
+        temp = _im2col_3d(arr, (2*radius+1, 2*radius+1, 2*radius+1), (2*radius, 2*radius, 2*radius), 'C')
+
+        out[..., i] = np.mean(temp).reshape(arr.shape)  #np.reshape(_col2im_3d(A, size, overlap, order)
+          #  _col2im_3d(R, block_shape, end_shape, overlap, order)
+        # for idx in ndindex(out.shape[:-1]):
+        #     print(idx, arr.shape, out.shape, out.shape[:-1])
+        #     print(idx)
+        #     out[..., i] = np.mean(arr[idx[0]-radius:arr[idx[0]+radius+1]],
+        #                           arr[idx[1]-radius:arr[idx[1]+radius+1]],
+        #                           arr[idx[2]-radius:arr[idx[2]+radius+1]])
+
+    return out
