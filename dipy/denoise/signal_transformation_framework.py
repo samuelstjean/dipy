@@ -44,6 +44,7 @@ def _inv_nchi_cdf(N, K, alpha):
 # def _pdf_nchi(m, eta, sigma, N):
 #     return m**N/(sigma**2 * eta**(N-1)) * np.exp((m**2 + eta**2)/(-2*sigma**2)) * iv(N-1, m*eta/sigma**2)
 
+
 def _optimal_quantile(N):
     """Returns the optimal quantile order alpha for a known N"""
 
@@ -56,8 +57,10 @@ def _optimal_quantile(N):
               64: 0.5456,
               128: 0.5323}
 
-    return values[N]
-
+    if N in values:
+        return values[N]
+    else:
+        return 0.5
 
 
 def _beta(N):
@@ -79,7 +82,6 @@ def _beta(N):
               64: 11.2916332015}
 
     return values[N]
-
     #return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
 
 
@@ -299,7 +301,7 @@ def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005, eps=1e-10):
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-def fixed_point_finder(m_hat, sigma, N=12, max_iter=500, eps=1e-10):
+def fixed_point_finder(m_hat, sigma, N=12, max_iter=100, eps=1e-3):
 
     m = np.array(m_hat, dtype=np.float64)
     delta = _beta(N) * sigma - m_hat
@@ -342,6 +344,10 @@ def fixed_point_finder(m_hat, sigma, N=12, max_iter=500, eps=1e-10):
         #while np.any(np.abs(t0 - t1) > eps):
         ###print(ind,"ind in")
         ###from copy import copy
+
+        # Prevent looping on small non converging cases
+        sum_ind0 = np.sum(ind)
+
         while np.any(ind):
 
             #t0 = t1
@@ -354,9 +360,18 @@ def fixed_point_finder(m_hat, sigma, N=12, max_iter=500, eps=1e-10):
             n_iter += 1
             ind[idx] = np.abs(t0[idx] - t1[idx]) > eps
             ###print(t0, t1, ind, "cas 2")
+            sum_ind1 = np.sum(ind)
+            print(np.sum(ind), np.sum(np.abs(t0[idx] - t1[idx])))
+
             if n_iter > max_iter:
                 print("trop d'iter :(")
                 break
+
+            if (sum_ind0 - sum_ind1 == 0) and n_iter > 5:
+                print("loop around sur ind", sum_ind0)
+                break
+
+            sum_ind0 = np.sum(ind)
 
         if np.all(delta[idx] > 0):
             out[idx] = -t1[idx]
@@ -364,6 +379,7 @@ def fixed_point_finder(m_hat, sigma, N=12, max_iter=500, eps=1e-10):
         if np.all(delta[idx] < 0):
             out[idx] = t1[idx]
 
+    print(np.sum(np.isnan(out)),  np.sum(np.isinf(out)))
     return out
     #return t1
 
@@ -414,10 +430,14 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
     Journal of Magnetic Resonance 2009; 197: 108-119.
     """
 
-    # Initial estimation of sigma
-    denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, 1/2))
-    m = np.median(data) / denom
+    # Get optimal quantile if available, else use the median
+    q = _optimal_quantile(N)
 
+    # Initial estimation of sigma
+    denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
+    #m = np.median(data) / denom
+    m = np.percentile(data, q*100) / denom
+    #print(m)
     phi = np.arange(1, l + 1) * m/l
     K = data.shape[-1]
     sum_m2 = np.sum(data**2, axis=-1)
@@ -455,7 +475,9 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
                 break
 
             sig_prev = sig
-            sig = np.median(omega) / denom
+            #sig = np.median(omega) / denom
+            # Numpy percentile must rnage in 0 to 100, hence q*100
+            sig = np.percentile(omega, q*100) / denom
             omega_size = omega.size/K
 
         # Remember the biggest omega array as giving the optimal
