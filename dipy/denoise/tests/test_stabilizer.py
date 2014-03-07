@@ -33,8 +33,8 @@ def test_xi():
 
 def test_fixed_point_finder():
     # Values taken from hispeed.SignalFixedPointFinder.fixedPointFinder
-    assert_almost_equal(fixed_point_finder(np.array([50]), 30, 12), -192.78288201533618, decimal=10)
-    assert_almost_equal(fixed_point_finder(np.array([650]), 45, 1), 648.4366584016703, decimal=10)
+    assert_almost_equal(fixed_point_finder(np.array([50]), 30, 12), -192.78288201533618)
+    assert_almost_equal(fixed_point_finder(np.array([650]), 45, 1), 648.4366584016703)
 
 
 def test_chi_to_gauss():

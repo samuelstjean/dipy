@@ -361,13 +361,14 @@ def fixed_point_finder(m_hat, sigma, N=12, max_iter=100, eps=1e-3):
             ind[idx] = np.abs(t0[idx] - t1[idx]) > eps
             ###print(t0, t1, ind, "cas 2")
             sum_ind1 = np.sum(ind)
-            print(np.sum(ind), np.sum(np.abs(t0[idx] - t1[idx])))
+            print(np.sum(ind), "Total diff abs", np.sum(np.abs(t0[idx] - t1[idx])),
+                "Max diff abs", np.max(np.sum(np.abs(t0[idx] - t1[idx]))))
 
             if n_iter > max_iter:
                 print("trop d'iter :(")
                 break
 
-            if (sum_ind0 - sum_ind1 == 0) and n_iter > 5:
+            if ((sum_ind0 - sum_ind1) == 0) and n_iter > 5:
                 print("loop around sur ind", sum_ind0)
                 break
 

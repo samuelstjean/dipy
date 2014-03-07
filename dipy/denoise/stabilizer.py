@@ -102,22 +102,23 @@ def main():
     print(sigma) #,"N=1 for piesno noise detection!")
 
     sigma_mode = mode(sigma, axis=None)[0]
-    print(sigma_mode)
+    print(mode(sigma, axis=None))
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + 'mask_noise.nii.gz')
    # print(sigma_mode)
     #sigma_mode = 20#N * np.max(sigma)
    # print(sigma_mode, type(sigma_mode), float(sigma_mode))
-    #1/0
-    ###m_hat = np.mean(data, axis=-1, keepdims=True)
+
+    #m_hat = np.repeat(np.mean(data, axis=-1, keepdims=True), data.shape[-1], axis=-1)
     m_hat = np.zeros_like(data, dtype=np.float64)
     for idx in range(data.shape[-1]):
-        m_hat[..., idx] = gaussian_filter(data[..., idx], 1.)
+        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
 
     nib.save(nib.Nifti1Image(m_hat, affine, header), filename + 'm_hat.nii.gz')
-    ##1/0
+    #1/0
     ###m_hat = data
    # print(type(m_hat), type(sigma_mode), type(N))
     eta = fixed_point_finder(m_hat, sigma_mode, N)
+
     ###eta = np.repeat(eta, data.shape[-1], axis=-1)
     ###eta[..., 0] = data[..., 0]
     print(data.shape,m_hat.shape,eta.shape)
@@ -128,6 +129,7 @@ def main():
         #print(np.sum(np.isnan(eta)), np.sum(np.isinf(eta)))
         #eta[np.isnan(eta)] = data[np.isnan(eta)]
         #print(np.sum(np.isnan(eta)), np.sum(np.isinf(eta)))
+    ##data_stabilized = chi_to_gauss(m_hat, eta, sigma_mode, N)
     data_stabilized = chi_to_gauss(data, eta, sigma_mode, N)
 
     print("temps total:", time() - deb)
