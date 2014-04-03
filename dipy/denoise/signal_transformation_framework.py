@@ -7,7 +7,7 @@ from scipy.misc import factorial, factorial2
 from scipy.stats import mode
 from scipy.linalg import svd
 
-from dipy.denoise.denspeed import noise_field
+#from dipy.denoise.denspeed import noise_field
 
 
 from dipy.core.ndindex import ndindex

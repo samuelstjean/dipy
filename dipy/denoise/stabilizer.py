@@ -117,12 +117,13 @@ def main():
     #1/0
     ###m_hat = data
    # print(type(m_hat), type(sigma_mode), type(N))
+    m_hat = nib.load('DTIpierrickfusionx10_ps1_0_denoised.nii.gz').get_data().astype(np.float64)
     eta = fixed_point_finder(m_hat, sigma_mode, N)
 
     ###eta = np.repeat(eta, data.shape[-1], axis=-1)
     ###eta[..., 0] = data[..., 0]
     print(data.shape,m_hat.shape,eta.shape)
-    #nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta')
+    nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta')
 
         #eta[..., idx, :] = fixed_point_finder(data[..., idx, :], sigma[idx], N)
 
