@@ -11,8 +11,9 @@ from dipy.data import get_sphere
 from dipy.core.geometry import cart2sphere
 from dipy.core.ndindex import ndindex
 from dipy.sims.voxel import single_tensor
-from scipy.special import lpn
+from scipy.special import lpn, gamma
 from dipy.reconst.dti import TensorModel, fractional_anisotropy
+from scipy.integrate import quad
 
 
 class ConstrainedSphericalDeconvModel(OdfModel, Cache):
@@ -34,12 +35,12 @@ class ConstrainedSphericalDeconvModel(OdfModel, Cache):
         Parameters
         ----------
         gtab : GradientTable
-        response : tuple or callable
-            If tuple, then it should have two elements. The first is the eigen-values as an (3,) ndarray
-            and the second is the signal value for the response function without diffusion weighting.
-            This is to be able to generate a single fiber synthetic signal. If callable then the function
-            should return an ndarray with the all the signal values for the response function. The response
-            function will be used as deconvolution kernel ([1]_)
+        response : tuple
+            A tuple with two elements. The first is the eigen-values as an (3,)
+            ndarray and the second is the signal value for the response
+            function without diffusion weighting.  This is to be able to
+            generate a single fiber synthetic signal. The response function
+            will be used as deconvolution kernel ([1]_)
         reg_sphere : Sphere
             sphere used to build the regularization B matrix
         sh_order : int
@@ -63,6 +64,7 @@ class ConstrainedSphericalDeconvModel(OdfModel, Cache):
                of tractography pipelines
         .. [4] Tournier, J.D, et al. Imaging Systems and Technology 2012. MRtrix: Diffusion
                Tractography in Crossing Fiber Regions
+
         """
 
         m, n = sph_harm_ind_list(sh_order)
@@ -91,13 +93,10 @@ class ConstrainedSphericalDeconvModel(OdfModel, Cache):
         r, theta, phi = cart2sphere(self.sphere.x, self.sphere.y, self.sphere.z)
         self.B_reg = real_sph_harm(m, n, theta[:, None], phi[:, None])
 
-        if callable(response):
-            S_r = response
+        if response is None:
+            S_r = estimate_response(gtab, np.array([0.0015, 0.0003, 0.0003]), 1)
         else:
-            if response is None:
-                S_r = estimate_response(gtab, np.array([0.0015, 0.0003, 0.0003]), 1)
-            else:
-                S_r = estimate_response(gtab, response[0], response[1])
+            S_r = estimate_response(gtab, response[0], response[1])
 
         r_sh = np.linalg.lstsq(self.B_dwi, S_r[self._where_dwi])[0]
         r_rh = sh_to_rh(r_sh, m, n)
@@ -325,21 +324,29 @@ def forward_sdeconv_mat(r_rh, n):
         Deconvolution matrix with shape (N, N)
 
     """
+
     if np.any(n % 2):
         raise ValueError("n has odd degrees, expecting only even degrees")
     return np.diag(r_rh[n // 2])
 
 
-def forward_sdt_deconv_mat(ratio, n):
+def forward_sdt_deconv_mat(ratio, n, r2_term=False):
     """ Build forward sharpening deconvolution transform (SDT) matrix
 
     Parameters
     ----------
     ratio : float
-        ratio = $\frac{\lambda_2}{\lambda_1}$ of the single fiber response function
+        ratio = $\frac{\lambda_2}{\lambda_1}$ of the single fiber response
+        function
     n : ndarray (N,)
         The degree of spherical harmonic function associated with each row of
         the deconvolution matrix. Only even degrees are allowed.
+    r2_term : bool
+        True if ODF comes from an ODF computed from a model using the $r^2$ term
+        in the integral. For example, DSI, GQI, SHORE, CSA, Tensor, Multi-tensor
+        ODFs. This results in using the proper analytical response function
+        solution solving from the single-fiber ODF with the r^2 term. This
+        derivation is not published anywhere but is very similar to [1]_.
 
     Returns
     -------
@@ -347,6 +354,10 @@ def forward_sdt_deconv_mat(ratio, n):
         SDT deconvolution matrix
     P : ndarray (N, N)
         Funk-Radon Transform (FRT) matrix
+
+    References
+    ----------
+    .. [1] Descoteaux, M. PhD Thesis. INRIA Sophia-Antipolis. 2008.
 
     """
     if np.any(n % 2):
@@ -356,7 +367,11 @@ def forward_sdt_deconv_mat(ratio, n):
     frt = np.zeros(n_degrees) # FRT (Funk-Radon transform) q-ball matrix
 
     for l in np.arange(0, n_degrees*2, 2):
-        sharp = quad(lambda z: lpn(l, z)[0][-1] * np.sqrt(1 / (1 - (1 - ratio) * z * z)), -1., 1.)
+        if r2_term :
+            sharp = quad(lambda z: lpn(l, z)[0][-1] * gamma(1.5) * np.sqrt( ratio / (4 * np.pi ** 3) ) /
+                         np.power((1 - (1 - ratio) * z ** 2), 1.5), -1., 1.)
+        else :
+            sharp = quad(lambda z: lpn(l, z)[0][-1] * np.sqrt(1 / (1 - (1 - ratio) * z * z)), -1., 1.)
 
         sdt[l / 2] = sharp[0]
         frt[l / 2] = 2 * np.pi * lpn(l, 0)[0][-1]
@@ -397,9 +412,9 @@ def csdeconv(s_sh, sh_order, R, B_reg, lambda_=1., tau=0.1):
     Returns
     -------
     fodf_sh : ndarray (``(sh_order + 1)*(sh_order + 2)/2``,)
-         Spherical harmonics coefficients of the constrained-regarized fiber ODF
+         Spherical harmonics coefficients of the constrained-regularized fiber ODF
     num_it : int
-         Number of iterations in the constrained-regarization used for convergence
+         Number of iterations in the constrained-regularization used for convergence
 
     References
     ----------
@@ -409,7 +424,7 @@ def csdeconv(s_sh, sh_order, R, B_reg, lambda_=1., tau=0.1):
     """
 
     # generate initial fODF estimate, truncated at SH order 4
-    fodf_sh = np.linalg.lstsq(R, s_sh)[0] #fodf_sh, = np.linalg.lstsq(R, s_sh) # R\s_sh
+    fodf_sh = np.linalg.lstsq(R, s_sh)[0]
     fodf_sh[15:] = 0
 
     fodf = np.dot(B_reg, fodf_sh)
@@ -435,20 +450,33 @@ def csdeconv(s_sh, sh_order, R, B_reg, lambda_=1., tau=0.1):
         k = k2
 
         # This is the super-resolved trick.
+<<<<<<< HEAD
         # Wherever there is a negative amplitude value on the fODF, it concatinates a value
         # to the S vector so that the estimation can focus on trying to eliminate it.
         # In a sense, this "adds" a measurement, which can help to better estimate the fodf_sh,
         # even if you have more SH coeffcients to estimate than actual S measurements.
+=======
+        # Wherever there is a negative amplitude value on the fODF, it
+        # concatenates a value to the S vector so that the estimation can
+        # focus on trying to eliminate it. In a sense, this "adds" a
+        # measurement, which can help to better estimate the fodf_sh, even if
+        # you have more SH coeffcients to estimate than actual S measurements.
+>>>>>>> nipy-dipy-master
         M = np.concatenate((R, lambda_ * B_reg[k, :]))
         S = np.concatenate((s_sh, np.zeros(k.shape)))
-        fodf_sh = np.linalg.lstsq(M, S)[0]
+        try:
+            fodf_sh = np.linalg.lstsq(M, S)[0]
+        except np.linalg.LinAlgError as lae:
+            # SVD did not converge in Linear Least Squares in current
+            # voxel. Proceeding with initial SH estimate for this voxel.
+            pass
 
     warnings.warn('maximum number of iterations exceeded - failed to converge')
     return fodf_sh, num_it
 
 
-def odf_deconv(odf_sh, R, B_reg, lambda_=1., tau=0.1):
-    r""" ODF constrained-regularized sherical deconvolution using
+def odf_deconv(odf_sh, R, B_reg, lambda_=1., tau=0.1, r2_term=False):
+    r""" ODF constrained-regularized spherical deconvolution using
     the Sharpening Deconvolution Transform (SDT) [1]_, [2]_.
 
     Parameters
@@ -464,6 +492,16 @@ def odf_deconv(odf_sh, R, B_reg, lambda_=1., tau=0.1):
     tau : float
          threshold (tau *max(fODF)) controlling the amplitude below
          which the corresponding fODF is assumed to be zero.
+    r2_term : bool
+         True if ODF is computed from model that uses the $r^2$ term in the integral.
+         Recall that Tuch's ODF (used in Q-ball Imaging [1]_) and the true normalized ODF
+         definition differ from a $r^2$ term in the ODF integral. The original Sharpening
+         Deconvolution Transform (SDT) technique [2]_ is expecting Tuch's ODF without
+         the $r^2$ (see [3]_ for the mathematical details).
+         Now, this function supports ODF that have been computed using the $r^2$ term because
+         the proper analytical response function has be derived.
+         For example, models such as DSI, GQI, SHORE, CSA, Tensor, Multi-tensor ODFs, should now
+         be deconvolved with the r2_term=True.
 
     Returns
     -------
@@ -474,10 +512,10 @@ def odf_deconv(odf_sh, R, B_reg, lambda_=1., tau=0.1):
 
     References
     ----------
-    .. [1] Descoteaux, M., et al. IEEE TMI 2009. Deterministic and Probabilistic Tractography Based
+    .. [1] Tuch, D. MRM 2004. Q-Ball Imaging.
+    .. [2] Descoteaux, M., et al. IEEE TMI 2009. Deterministic and Probabilistic Tractography Based
            on Complex Fibre Orientation Distributions
-    .. [2] Descoteaux, M, PhD thesis, INRIA Sophia-Antipolis, 2008.
-
+    .. [3] Descoteaux, M, PhD thesis, INRIA Sophia-Antipolis, 2008.
     """
     # Generate initial fODF estimate, which is the ODF truncated at SH order 4
     fodf_sh = np.linalg.lstsq(R, odf_sh)[0]
@@ -485,8 +523,11 @@ def odf_deconv(odf_sh, R, B_reg, lambda_=1., tau=0.1):
 
     fodf = np.dot(B_reg, fodf_sh)
 
-    Z = np.linalg.norm(fodf)
-    fodf_sh /= Z
+    # if sharpening a q-ball odf (it is NOT properly normalized), we need to force normalization
+    # otherwise, for DSI, CSA, SHORE, Tensor odfs, they are normalized by construction
+    if ~r2_term :
+        Z = np.linalg.norm(fodf)
+        fodf_sh /= Z
 
     fodf = np.dot(B_reg, fodf_sh)
     threshold = tau * np.max(np.dot(B_reg, fodf_sh))
@@ -509,13 +550,23 @@ def odf_deconv(odf_sh, R, B_reg, lambda_=1., tau=0.1):
         k = k2
         M = np.concatenate((R, lambda_ * B_reg[k, :]))
         ODF = np.concatenate((odf_sh, np.zeros(k.shape)))
+<<<<<<< HEAD
         fodf_sh = np.linalg.lstsq(M, ODF)[0]
+=======
+        try:
+            fodf_sh = np.linalg.lstsq(M, ODF)[0]
+        except np.linalg.LinAlgError as lae:
+            # SVD did not converge in Linear Least Squares in current
+            # voxel. Proceeding with initial SH estimate for this voxel.
+            pass
+>>>>>>> nipy-dipy-master
 
     warnings.warn('maximum number of iterations exceeded - failed to converge')
     return fodf_sh, num_it
 
 
-def odf_sh_to_sharp(odfs_sh, sphere, basis=None, ratio=3 / 15., sh_order=8, lambda_=1., tau=0.1):
+def odf_sh_to_sharp(odfs_sh, sphere, basis=None, ratio=3 / 15., sh_order=8, lambda_=1., tau=0.1,
+                    r2_term=False):
     r""" Sharpen odfs using the spherical deconvolution transform [1]_
 
     This function can be used to sharpen any smooth ODF spherical function. In theory, this should
@@ -540,6 +591,16 @@ def odf_sh_to_sharp(odfs_sh, sphere, basis=None, ratio=3 / 15., sh_order=8, lamb
         lambda parameter (see odfdeconv) (default 1.0)
     tau : float
         tau parameter in the L matrix construction (see odfdeconv) (default 0.1)
+    r2_term : bool
+         True if ODF is computed from model that uses the $r^2$ term in the integral.
+         Recall that Tuch's ODF (used in Q-ball Imaging [1]_) and the true normalized ODF
+         definition differ from a $r^2$ term in the ODF integral. The original Sharpening
+         Deconvolution Transform (SDT) technique [2]_ is expecting Tuch's ODF without
+         the $r^2$ (see [3]_ for the mathematical details).
+         Now, this function supports ODF that have been computed using the $r^2$ term because
+         the proper analytical response function has be derived.
+         For example, models such as DSI, GQI, SHORE, CSA, Tensor, Multi-tensor ODFs, should now
+         be deconvolved with the r2_term=True.
 
     Returns
     -------
@@ -548,12 +609,15 @@ def odf_sh_to_sharp(odfs_sh, sphere, basis=None, ratio=3 / 15., sh_order=8, lamb
 
     References
     ----------
-    .. [1] Descoteaux, M., et al. IEEE TMI 2009. Deterministic and Probabilistic Tractography Based
+    .. [1] Tuch, D. MRM 2004. Q-Ball Imaging.
+    .. [2] Descoteaux, M., et al. IEEE TMI 2009. Deterministic and Probabilistic Tractography Based
            on Complex Fibre Orientation Distributions
+    .. [3] Descoteaux, M, et al. MRM 2007. Fast, Regularized and Analytical Q-Ball Imaging
 
     """
     r, theta, phi = cart2sphere(sphere.x, sphere.y, sphere.z)
     real_sym_sh = sph_harm_lookup[basis]
+
     B_reg, m, n = real_sym_sh(sh_order, theta, phi)
     R, P = forward_sdt_deconv_mat(ratio, n)
 
@@ -564,8 +628,8 @@ def odf_sh_to_sharp(odfs_sh, sphere, basis=None, ratio=3 / 15., sh_order=8, lamb
     fodf_sh = np.zeros(odfs_sh.shape)
 
     for index in ndindex(odfs_sh.shape[:-1]):
-
-        fodf_sh[index], num_it = odf_deconv(odfs_sh[index], R, B_reg, lambda_=lambda_, tau=tau)
+        fodf_sh[index], num_it = odf_deconv(odfs_sh[index], R, B_reg, lambda_=lambda_,
+                                            tau=tau, r2_term=r2_term)
 
     return fodf_sh
 
@@ -579,7 +643,7 @@ def auto_response(gtab, data, roi_center=None, roi_radius=10, fa_thr=0.7):
     data : ndarray
         diffusion data
     roi_center : tuple, (3,)
-        Center of ROI in data. If center is None, it is assumed that is
+        Center of ROI in data. If center is None, it is assumed that it is
         the center of the volume with shape `data.shape[:3]`.
     roi_radius : int
         radius of cubic ROI
@@ -596,7 +660,11 @@ def auto_response(gtab, data, roi_center=None, roi_radius=10, fa_thr=0.7):
     Notes
     -----
     In CSD there is an important pre-processing step: the estimation of the
+<<<<<<< HEAD
     fiber response function. In order to do this we look for voxel with very
+=======
+    fiber response function. In order to do this we look for voxels with very
+>>>>>>> nipy-dipy-master
     anisotropic configurations. For example we can use an ROI (20x20x20) at
     the center of the volume and store the signal values for the voxels with
     FA values higher than 0.7. Of course, if we haven't precalculated FA we
