@@ -104,51 +104,6 @@ def nlmeans_4d(arr, mask=None, sigma=None, patch_radius=1,
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def _nlmeans_4d(double [:, :, :, ::1] arr, double [:, :, ::1] mask,
-                sigma, patch_radius=1, block_radius=5,
-                rician=True):
-    """ This algorithm denoises the value of every voxel (i, j ,k) by
-    calculating a weight between a moving 3D patch and a static 3D patch
-    centered at (i, j, k). The moving patch can only move inside a
-    3D block.
-    """
-
-    cdef:
-        cnp.npy_intp i, j, k, l, I, J, K, L
-        double [:, :, :, ::1] out = np.zeros_like(arr)
-        double summ = 0
-        double sigm = 0
-        cnp.npy_intp P = patch_radius
-        cnp.npy_intp B = block_radius
-
-    sigm = sigma
-
-    I = arr.shape[0]
-    J = arr.shape[1]
-    K = arr.shape[2]
-    L = arr.shape[3]
-
-    #move the block
-    with nogil, parallel():
-        for i in prange(B, I - B):
-            for j in range(B , J - B):
-                for k in range(B, K - B):
-
-                    if mask[i, j, k] == 0:
-                        continue
-                    out[i, j, k] = process_block4D(arr, i, j, k, B, P, sigm)
-
-    new = np.asarray(out)
-
-    if rician:
-        new -= 2 * sigm ** 2
-    new[new < 0] = 0
-
-    return np.sqrt(new)
-
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
 def _nlmeans_3d(double [:, :, ::1] arr, double [:, :, ::1] mask,
                 sigma, patch_radius=1, block_radius=5,
                 rician=True):
@@ -188,6 +143,53 @@ def _nlmeans_3d(double [:, :, ::1] arr, double [:, :, ::1] mask,
     if rician:
         new -= 2 * sigm ** 2
         new[new < 0] = 0
+
+    return np.sqrt(new)
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+def _nlmeans_4d(double [:, :, :, ::1] arr, double [:, :, ::1] mask,
+                sigma, patch_radius=1, block_radius=5,
+                rician=True):
+    """ This algorithm denoises the value of every voxel (i, j ,k) by
+    calculating a weight between a moving 3D patch and a static 3D patch
+    centered at (i, j, k). The moving patch can only move inside a
+    3D block.
+    """
+
+    cdef:
+        cnp.npy_intp i, j, k, l, I, J, K, L
+        double [:, :, :, ::1] out = np.zeros_like(arr)
+        double summ = 0
+        double sigm = 0
+        cnp.npy_intp P = patch_radius
+        cnp.npy_intp B = block_radius
+
+    sigm = sigma
+
+    I = arr.shape[0]
+    J = arr.shape[1]
+    K = arr.shape[2]
+    L = arr.shape[3]
+
+    #move the block
+    with nogil, parallel():
+        for i in prange(B, I - B):
+            for j in range(B , J - B):
+                for k in range(B, K - B):
+
+                    if mask[i, j, k] == 0:
+                        continue
+
+                    for l in range(L):
+                        out[i, j, k, l] = process_block4D(arr, i, j, k, l, B, P, sigm)
+
+    new = np.asarray(out)
+
+    if rician:
+        new -= 2 * sigm ** 2
+    new[new < 0] = 0
 
     return np.sqrt(new)
 
@@ -291,7 +293,7 @@ cdef double process_block(double [:, :, ::1] arr,
 @cython.boundscheck(False)
 @cython.cdivision(True)
 cdef double process_block4D(double [:, :, :, ::1] arr,
-                          cnp.npy_intp i, cnp.npy_intp j, cnp.npy_intp k,
+                          cnp.npy_intp i, cnp.npy_intp j, cnp.npy_intp k, cnp.npy_intp l,
                           cnp.npy_intp B, cnp.npy_intp P, double sigma) nogil:
     """ Process the block with center at (i, j, k)
 
@@ -343,7 +345,7 @@ cdef double process_block4D(double [:, :, :, ::1] arr,
     for m in range(P, BS - P):
         for n in range(P, BS - P):
             for o in range(P, BS - P):
-               # for p in range(last_dim, last_dim):
+                #for p in range(last_dim):
                     #p = 0
                     summ = 0
                   #  with gil:
@@ -358,12 +360,12 @@ cdef double process_block4D(double [:, :, :, ::1] arr,
                                     # this line takes most of the time! mem access
                                     d = cache[(B + a) * BS * BS + (B + b) * BS + (B + c) + e] - cache[(m + a) * BS * BS + (n + b) * BS + (o + c) + e]
                                     summ += d * d
-            
+
                     w = exp(-(summ / patch_vol_size) / denom)
                     sumw += w
                     W[cnt] = w
                     cnt += 1
-                    
+
 
     cnt = 0
     sum_out = 0
@@ -380,7 +382,7 @@ cdef double process_block4D(double [:, :, :, ::1] arr,
                         w = W[cnt] / sumw
                     else:
                         w = 0
-        
+
                     x = cache[m * BS * BS + n * BS + o + p]
 
                     sum_out += w * x * x
@@ -445,12 +447,12 @@ def remove_padding(arr, padding):
                padding:shape[2] - padding]
 
 
-def remove_padding4D(arr, padding):
-    shape = arr.shape
-    return arr[padding:shape[0] - padding,
-               padding:shape[1] - padding,
-               padding:shape[2] - padding,
-               padding:shape[3] - padding]
+# def remove_padding4D(arr, padding):
+#     shape = arr.shape
+#     return arr[padding:shape[0] - padding,
+#                padding:shape[1] - padding,
+#                padding:shape[2] - padding,
+#                padding:shape[3] - padding]
 
 
 @cython.wraparound(False)
