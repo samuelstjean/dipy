@@ -19,17 +19,20 @@ help:
 all: ext cython-html test
 
 ext: recspeed.so propspeed.so vox2track.so \
-    distances.so
+    distances.so denspeed.so noise_field.so
 
 test: ext
 	nosetests .
 
-cython-html:  ${PKGDIR}/reconst/recspeed.html ${PKGDIR}/tracking/propspeed.html ${PKGDIR}/tracking/vox2track.html ${PKGDIR}/tracking/distances.html 
+cython-html:  ${PKGDIR}/reconst/recspeed.html ${PKGDIR}/tracking/propspeed.html ${PKGDIR}/tracking/vox2track.html \
+	${PKGDIR}/tracking/distances.html ${PKGDIR}/denoise/denspeed.html ${PKGDIR}/denoise/noise_field.html
 
 recspeed.so: ${PKGDIR}/reconst/recspeed.pyx
 propspeed.so: ${PKGDIR}/tracking/propspeed.pyx
 vox2track.so: ${PKGDIR}/tracking/vox2track.pyx
 distances.so: ${PKGDIR}/tracking/distances.pyx
+denspeed.so: ${PKGDIR}/denoise/denspeed.pyx
+noise_field.so: ${PKGDIR}/denoise/noise_field.pyx
 
 	$(PYTHON) setup.py build_ext --inplace
 

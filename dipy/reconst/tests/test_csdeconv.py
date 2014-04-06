@@ -18,7 +18,8 @@ from dipy.reconst.csdeconv import (ConstrainedSphericalDeconvModel,
                                    auto_response)
 from dipy.reconst.peaks import peak_directions
 from dipy.core.sphere_stats import angular_similarity
-from dipy.reconst.shm import sf_to_sh, sh_to_sf, QballModel, sph_harm_ind_list
+from dipy.reconst.shm import (sf_to_sh, sh_to_sf, QballModel, 
+                              CsaOdfModel, sph_harm_ind_list)
 
 
 def test_csdeconv():
@@ -34,15 +35,14 @@ def test_csdeconv():
     mevals = np.array(([0.0015, 0.0003, 0.0003],
                        [0.0015, 0.0003, 0.0003]))
 
-    S, sticks = multi_tensor(gtab, mevals, S0, angles=[(0, 0), (60, 0)],
+    angles = [(0, 0), (60, 0)]
+
+    S, sticks = multi_tensor(gtab, mevals, S0, angles=angles,
                              fractions=[50, 50], snr=SNR)
 
-    sphere = get_sphere('symmetric724')
+    sphere = get_sphere('symmetric362')
 
-    mevecs = [all_tensor_evecs(sticks[0]).T,
-              all_tensor_evecs(sticks[1]).T]
-
-    odf_gt = multi_tensor_odf(sphere.vertices, [0.5, 0.5], mevals, mevecs)
+    odf_gt = multi_tensor_odf(sphere.vertices, mevals, angles, [50, 50])
 
     response = (np.array([0.0015, 0.0003, 0.0003]), S0)
 
@@ -73,6 +73,10 @@ def test_csdeconv():
         ConstrainedSphericalDeconvModel(gtab, response, sh_order=8)
         assert_equal(len(w) > 0, False)
 
+    mevecs = []
+    for s in sticks:
+        mevecs += [all_tensor_evecs(s).T]
+
     S2 = single_tensor(gtab, 100, mevals[0], mevecs[0], snr=None)
     big_S = np.zeros((10, 10, 10, len(S2)))
     big_S[:] = S2
@@ -99,15 +103,13 @@ def test_odfdeconv():
     mevals = np.array(([0.0015, 0.0003, 0.0003],
                        [0.0015, 0.0003, 0.0003]))
 
-    S, sticks = multi_tensor(gtab, mevals, S0, angles=[(0, 0), (90, 0)],
+    angles = [(0, 0), (90, 0)]
+    S, sticks = multi_tensor(gtab, mevals, S0, angles=angles,
                              fractions=[50, 50], snr=SNR)
 
-    sphere = get_sphere('symmetric724')
+    sphere = get_sphere('symmetric362')
 
-    mevecs = [all_tensor_evecs(sticks[0]).T,
-              all_tensor_evecs(sticks[1]).T]
-
-    odf_gt = multi_tensor_odf(sphere.vertices, [0.5, 0.5], mevals, mevecs)
+    odf_gt = multi_tensor_odf(sphere.vertices, mevals, angles, [50, 50])
 
     e1 = 15.0
     e2 = 3.0
@@ -141,7 +143,7 @@ def test_odfdeconv():
 
 def test_odf_sh_to_sharp():
 
-    SNR = 100
+    SNR = None
     S0 = 1
 
     _, fbvals, fbvecs = get_data('small_64D')
@@ -173,7 +175,7 @@ def test_odf_sh_to_sharp():
     odfs_sh /= Z
 
     fodf_sh = odf_sh_to_sharp(odfs_sh, sphere, basis=None, ratio=3 / 15.,
-                              sh_order=8, lambda_=1., tau=1.)
+                              sh_order=8, lambda_=1., tau=0.1)
 
     fodf = sh_to_sf(fodf_sh, sphere, sh_order=8, basis_type=None)
 
@@ -201,8 +203,41 @@ def test_forward_sdeconv_mat():
     npt.assert_raises(ValueError, forward_sdeconv_mat, r_rh, n)
 
 
-if __name__ == '__main__':
-    #run_module_suite()
-    test_csdeconv()
+def test_r2_term_odf_sharp():
+    SNR = None
+    S0 = 1
+    angle = 75
 
+    _, fbvals, fbvecs = get_data('small_64D')  #get_data('small_64D')
+
+    bvals = np.load(fbvals)
+    bvecs = np.load(fbvecs)
+
+    sphere = get_sphere('symmetric724')
+    gtab = gradient_table(bvals, bvecs)
+    mevals = np.array(([0.0015, 0.0003, 0.0003],
+                       [0.0015, 0.0003, 0.0003]))
+
+    angles = [(0, 0), (angle, 0)]
+
+    S, sticks = multi_tensor(gtab, mevals, S0, angles=angles,
+                             fractions=[50, 50], snr=SNR)    
+
+    odf_gt = multi_tensor_odf(sphere.vertices, mevals, angles, [50, 50])
+    odfs_sh = sf_to_sh(odf_gt, sphere, sh_order=8, basis_type=None)
+    fodf_sh = odf_sh_to_sharp(odfs_sh, sphere, basis=None, ratio=3 / 15.,
+                              sh_order=8, lambda_=1., tau=0.1, r2_term=True)
+    fodf = sh_to_sf(fodf_sh, sphere, sh_order=8, basis_type=None)
+
+    directions_gt, _, _ = peak_directions(odf_gt, sphere)
+    directions, _, _ = peak_directions(fodf, sphere)
+
+    ang_sim = angular_similarity(directions_gt, directions)
+    assert_equal(ang_sim > 1.9, True)
+    assert_equal(directions.shape[0], 2)
+
+
+
+if __name__ == '__main__':
+    run_module_suite()
 
