@@ -32,7 +32,7 @@ def buildArgsParser():
                    help='Path of the image file to stabilize.')
 
     p.add_argument('-N', action='store', dest='N',
-                   metavar=' ', required=False, default=12, type=int,
+                   metavar=' ', required=False, default=4, type=int,
                    help='Number of receiver coils of the scanner for GRAPPA \
                    reconstruction. Use 1 in the case of a SENSE reconstruction. \
                    Default : 12 for the 1.5T from Sherbrooke.')
