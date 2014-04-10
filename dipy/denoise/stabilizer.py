@@ -117,7 +117,7 @@ def main():
     #1/0
     ###m_hat = data
    # print(type(m_hat), type(sigma_mode), type(N))
-    m_hat = nib.load('DTIpierrickfusionx10_ps1_0_denoised.nii.gz').get_data().astype(np.float64)
+   # m_hat = nib.load('DTIpierrickfusionx10_ps1_0_denoised.nii.gz').get_data().astype(np.float64)
     eta = fixed_point_finder(m_hat, sigma_mode, N)
 
     ###eta = np.repeat(eta, data.shape[-1], axis=-1)
