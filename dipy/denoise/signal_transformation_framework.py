@@ -477,7 +477,7 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
 
             sig_prev = sig
             #sig = np.median(omega) / denom
-            # Numpy percentile must rnage in 0 to 100, hence q*100
+            # Numpy percentile must range in 0 to 100, hence q*100
             sig = np.percentile(omega, q*100) / denom
             omega_size = omega.size/K
 
@@ -577,7 +577,7 @@ def correction_scheme(data, N=12):
     pass
 
 
-from scilpy.denoising.utils import _im2col_3d#, _col2im_3d
+#from scilpy.denoising.utils import _im2col_3d#, _col2im_3d
 def local_means(arr, radius=1):
 
     if arr.ndim == 3:

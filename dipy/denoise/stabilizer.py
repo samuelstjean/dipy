@@ -11,6 +11,7 @@ import argparse
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
 from scipy.stats import mode
 from scipy.ndimage.filters import gaussian_filter
+from dipy.denoise.nlmeans import nlmeans
 
 DESCRIPTION = """
     Convenient script to transform noisy rician/chi-squared signals into
@@ -35,7 +36,7 @@ def buildArgsParser():
                    metavar=' ', required=False, default=4, type=int,
                    help='Number of receiver coils of the scanner for GRAPPA \
                    reconstruction. Use 1 in the case of a SENSE reconstruction. \
-                   Default : 12 for the 1.5T from Sherbrooke.')
+                   Default : 4 for the 1.5T from Sherbrooke.')
 
     p.add_argument('-o', action='store', dest='savename',
                    metavar='savename', required=False, default=None, type=str,
@@ -51,7 +52,7 @@ def main():
     args = parser.parse_args()
 
     vol = nib.load(args.input)
-    data = vol.get_data().astype('float64') #[30:100,30:100, 30:40, :20]
+    data = vol.get_data() #.astype('float64') #[30:100,30:100, 30:40, :20]
     header = vol.get_header()
     affine = vol.get_affine()
 
@@ -72,7 +73,8 @@ def main():
         elif os.path.basename(args.input).endswith('.nii.gz'):
             temp = os.path.basename(args.input)[:-7]
 
-        filename = os.path.dirname(os.path.realpath(args.input)) + '/' + temp + "_stabilized.nii.gz"
+        filename = os.path.dirname(os.path.realpath(args.input)) + '/' + temp
+        print("savename is", filename)
 
     else:
         filename = args.savename
@@ -89,7 +91,7 @@ def main():
     for idx in range(data.shape[-2]): #  min_slice, data.shape[-2] - min_slice): in range(25,30): #
         print("Now processing slice", idx+1, "out of", data.shape[-2])
 
-        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N=N, l=50)
+        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N=N, l=100)
         ######m_hat = np.mean(data, axis=-1)
         ######eta[..., idx, :] = fixed_point_finder(m_hat, sigma[idx], N)
 
@@ -99,11 +101,12 @@ def main():
         #eta[np.isnan(eta)] = data[np.isnan(eta)]
         #print(np.sum(np.isnan(eta)), np.sum(np.isinf(eta)))
         #######data_stabilized[..., idx, :] = chi_to_gauss(data[..., idx, :], eta[..., idx, :], sigma[idx], N)
-    print(sigma) #,"N=1 for piesno noise detection!")
+    print(sigma, np.percentile(sigma, 10.),  np.percentile(sigma, 90.)) #,"N=1 for piesno noise detection!")
 
-    sigma_mode = mode(sigma, axis=None)[0]
-    print(mode(sigma, axis=None))
-    nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + 'mask_noise.nii.gz')
+    sigma = np.round(sigma).astype(np.int16)
+    sigma_mode, num = mode(sigma, axis=None)
+    print("mode of sigma is", sigma_mode, "with nb" , num, "median is", np.median(sigma))
+    nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
    # print(sigma_mode)
     #sigma_mode = 20#N * np.max(sigma)
    # print(sigma_mode, type(sigma_mode), float(sigma_mode))
@@ -112,8 +115,9 @@ def main():
     m_hat = np.zeros_like(data, dtype=np.float64)
     for idx in range(data.shape[-1]):
         m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
+    #m_hat = nlmeans(data, sigma_mode, rician=False)
 
-    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + 'm_hat.nii.gz')
+    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #1/0
     ###m_hat = data
    # print(type(m_hat), type(sigma_mode), type(N))
@@ -123,7 +127,7 @@ def main():
     ###eta = np.repeat(eta, data.shape[-1], axis=-1)
     ###eta[..., 0] = data[..., 0]
     print(data.shape,m_hat.shape,eta.shape)
-    nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta')
+    nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta.nii.gz')
 
         #eta[..., idx, :] = fixed_point_finder(data[..., idx, :], sigma[idx], N)
 
@@ -137,7 +141,7 @@ def main():
     #print(data_stabilized.min(), data_stabilized.max())
     ##data_stabilized = data_stabilized * (max_val - min_val) + min_val
     #print(data_stabilized.min(), data_stabilized.max())
-    nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename)
+    nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
 
 
 if __name__ == "__main__":
