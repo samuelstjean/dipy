@@ -450,18 +450,12 @@ def csdeconv(s_sh, sh_order, R, B_reg, lambda_=1., tau=0.1):
         k = k2
 
         # This is the super-resolved trick.
-<<<<<<< HEAD
-        # Wherever there is a negative amplitude value on the fODF, it concatinates a value
-        # to the S vector so that the estimation can focus on trying to eliminate it.
-        # In a sense, this "adds" a measurement, which can help to better estimate the fodf_sh,
-        # even if you have more SH coeffcients to estimate than actual S measurements.
-=======
         # Wherever there is a negative amplitude value on the fODF, it
         # concatenates a value to the S vector so that the estimation can
         # focus on trying to eliminate it. In a sense, this "adds" a
         # measurement, which can help to better estimate the fodf_sh, even if
         # you have more SH coeffcients to estimate than actual S measurements.
->>>>>>> nipy-dipy-master
+
         M = np.concatenate((R, lambda_ * B_reg[k, :]))
         S = np.concatenate((s_sh, np.zeros(k.shape)))
         try:
@@ -550,16 +544,13 @@ def odf_deconv(odf_sh, R, B_reg, lambda_=1., tau=0.1, r2_term=False):
         k = k2
         M = np.concatenate((R, lambda_ * B_reg[k, :]))
         ODF = np.concatenate((odf_sh, np.zeros(k.shape)))
-<<<<<<< HEAD
-        fodf_sh = np.linalg.lstsq(M, ODF)[0]
-=======
+
         try:
             fodf_sh = np.linalg.lstsq(M, ODF)[0]
         except np.linalg.LinAlgError as lae:
             # SVD did not converge in Linear Least Squares in current
             # voxel. Proceeding with initial SH estimate for this voxel.
             pass
->>>>>>> nipy-dipy-master
 
     warnings.warn('maximum number of iterations exceeded - failed to converge')
     return fodf_sh, num_it
@@ -660,11 +651,7 @@ def auto_response(gtab, data, roi_center=None, roi_radius=10, fa_thr=0.7):
     Notes
     -----
     In CSD there is an important pre-processing step: the estimation of the
-<<<<<<< HEAD
-    fiber response function. In order to do this we look for voxel with very
-=======
     fiber response function. In order to do this we look for voxels with very
->>>>>>> nipy-dipy-master
     anisotropic configurations. For example we can use an ROI (20x20x20) at
     the center of the volume and store the signal values for the voxels with
     FA values higher than 0.7. Of course, if we haven't precalculated FA we
