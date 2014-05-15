@@ -2,7 +2,7 @@ from __future__ import division, print_function
 
 import numpy as np
 
-from scipy.special import erfinv, hyp1f1, iv, ive, gammainccinv
+from scipy.special import erfinv, hyp1f1, ive, gammainccinv
 from scipy.misc import factorial, factorial2
 from scipy.stats import mode
 from scipy.linalg import svd
@@ -15,7 +15,6 @@ from dipy.core.ndindex import ndindex
 #from scipy.integrate import quad, romberg, romb
 #from scipy import stats
 
-from dipy.core.ndindex import ndindex
 from time import time
 
 
@@ -48,14 +47,14 @@ def _inv_nchi_cdf(N, K, alpha):
 def _optimal_quantile(N):
     """Returns the optimal quantile order alpha for a known N"""
 
-    values = {1: 0.7968,
-              2: 0.7306,
-              4: 0.6722,
-              8: 0.6254,
-              16: 0.5900,
-              32: 0.5642,
-              64: 0.5456,
-              128: 0.5323}
+    values = {1: 0.79681213002002,
+              2: 0.7306303027491917,
+              4: 0.6721952960782169,
+              8: 0.6254030432343569,
+             16: 0.5900487123737876,
+             32: 0.5641772300866416,
+             64: 0.5455611840489607,
+            128: 0.5322811923303339}
 
     if N in values:
         return values[N]
@@ -150,21 +149,21 @@ def _marcumq(a, b, M, eps=1e-10):
         d = x**M
         S = np.zeros_like(z, dtype=np.float64)
 
-    cond = True  # np.ones_like(z, dtype=np.bool)
+    cond = False  # np.ones_like(z, dtype=np.bool)
 
-    while np.all(cond):
+    while not np.any(cond): #np.all(cond):
 
         t = d * ive(k, z)
         S += t
         d = d * x
         k += 1
 
-        cond = np.abs(t/S) > eps
+        cond = np.abs(t/S) < eps #> eps
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
 
 
-def estimate_sigma_grappa(data, grappa_kernel_W=None, cov_matrix=None, L=12, n=3):
+def estimate_sigma_grappa(data, L, grappa_kernel_W=None, cov_matrix=None, n=3):
     """Estimation of the standard deviation of noise in parallel MRI.
 
     data : Data to estimate the noise variance from
@@ -274,7 +273,7 @@ def _sigma2_eff(theta, m2, L):
 #    return 0.5 * mode(m2/trace_theta)
 
 
-def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005, eps=1e-10):
+def chi_to_gauss(m, eta, sigma, N, alpha=1e-10, eps=1e-10): #0.0005
 
     #cdf = np.clip(1 - _marcumq(eta/sigma, m/sigma, N), alpha/2, 1 - alpha/2)
 
@@ -296,12 +295,13 @@ def chi_to_gauss(m, eta, sigma, N=12, alpha=0.0005, eps=1e-10):
     #print(np.sum(np.isnan(cdf)), np.sum(np.isinf(cdf)))
     #cdf[np.isnan(cdf)] = 0
     #cdf[np.isinf(cdf)] = 1
+    print("clip cdf < ", np.sum(cdf < alpha/2), " > ", np.sum(cdf > 1 - alpha/2), "out of", cdf.size, cdf.min(), cdf.max())
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
 
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-def fixed_point_finder(m_hat, sigma, N=12, max_iter=100, eps=1e-3):
+def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-3):
 
     m = np.array(m_hat, dtype=np.float64)
     delta = _beta(N) * sigma - m_hat
@@ -347,6 +347,7 @@ def fixed_point_finder(m_hat, sigma, N=12, max_iter=100, eps=1e-3):
 
         # Prevent looping on small non converging cases
         sum_ind0 = np.sum(ind)
+        print("min, max, t0, t1", np.min(t0), np.min(t1), np.max(t0), np.max(t1))
 
         while np.any(ind):
 
@@ -362,7 +363,7 @@ def fixed_point_finder(m_hat, sigma, N=12, max_iter=100, eps=1e-3):
             ###print(t0, t1, ind, "cas 2")
             sum_ind1 = np.sum(ind)
             print(np.sum(ind), "Total diff abs", np.sum(np.abs(t0[idx] - t1[idx])),
-                "Max diff abs", np.max(np.sum(np.abs(t0[idx] - t1[idx]))))
+                "Max diff abs", np.max(np.abs(t0[idx] - t1[idx])))
 
             if n_iter > max_iter:
                 print("trop d'iter :(")
@@ -385,7 +386,7 @@ def fixed_point_finder(m_hat, sigma, N=12, max_iter=100, eps=1e-3):
     #return t1
 
 
-def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
+def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-10):
     """
     A routine for finding the underlying gaussian distribution standard
     deviation from magnitude signals.
@@ -431,6 +432,8 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
     Journal of Magnetic Resonance 2009; 197: 108-119.
     """
 
+    # prevent overflow in sum_m2
+    data = data.astype(np.float32)
     # Get optimal quantile if available, else use the median
     q = _optimal_quantile(N)
 
@@ -442,6 +445,8 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
     phi = np.arange(1, l + 1) * m/l
     K = data.shape[-1]
     sum_m2 = np.sum(data**2, axis=-1)
+    #print(data.shape,sum_m2.dtype, np.sum(sum_m2<0), np.sum(data**2), data.min(), data.max())
+    #1/0
 
     sigma = np.zeros_like(phi)
     mask = np.zeros(phi.shape + data.shape[:-1])
@@ -465,6 +470,7 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
 
             s = sum_m2 / (2*K*sig**2)
             idx = np.logical_and(lambda_minus <= s, s <= lambda_plus)
+            #print(np.sum(idx), omega_size,lambda_minus, lambda_plus, np.sum(s<0), (2*K*sig**2), np.sum(sum_m2<0), np.sum(data<0),"in")
             omega = data[idx, :]
             #print('1  ', len(omega), omega_size, omega.size, type(omega_size), type(omega.size))
             #print('2  ', np.sum(idx), 'idx')
@@ -480,6 +486,7 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
             # Numpy percentile must range in 0 to 100, hence q*100
             sig = np.percentile(omega, q*100) / denom
             omega_size = omega.size/K
+            #print(sig, n)
 
         # Remember the biggest omega array as giving the optimal
         # sigma amongst all initial estimates from phi
@@ -488,8 +495,8 @@ def piesno(data, N=12, alpha=0.01, l=100, itermax=100, eps=1e-10):
         #print('3  ', omega_size, omega.size, type(omega_size), type(omega.size))
         sigma[num] = sig
         mask[num] = idx
-        ##print(np.sum(idx), omega_size, "out")
-
+        #print(np.sum(idx), omega_size, "out")
+        #1/0
     return sigma[pos], mask[pos]  #, idx#[pos], idx
 
 

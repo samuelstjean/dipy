@@ -10,7 +10,7 @@ import argparse
 
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
 from scipy.stats import mode
-from scipy.ndimage.filters import gaussian_filter
+#from scipy.ndimage.filters import gaussian_filter
 from dipy.denoise.nlmeans import nlmeans
 
 DESCRIPTION = """
@@ -73,7 +73,7 @@ def main():
         elif os.path.basename(args.input).endswith('.nii.gz'):
             temp = os.path.basename(args.input)[:-7]
 
-        filename = os.path.dirname(os.path.realpath(args.input)) + '/' + temp
+        filename = os.path.split(os.path.abspath(args.input))[0] + '/' + temp
         print("savename is", filename)
 
     else:
@@ -101,21 +101,24 @@ def main():
         #eta[np.isnan(eta)] = data[np.isnan(eta)]
         #print(np.sum(np.isnan(eta)), np.sum(np.isinf(eta)))
         #######data_stabilized[..., idx, :] = chi_to_gauss(data[..., idx, :], eta[..., idx, :], sigma[idx], N)
-    print(sigma, np.percentile(sigma, 10.),  np.percentile(sigma, 90.)) #,"N=1 for piesno noise detection!")
+    print(sigma)
+    print(np.percentile(sigma, 10.),  np.percentile(sigma, 90.)) #,"N=1 for piesno noise detection!")
 
-    sigma = np.round(sigma).astype(np.int16)
+    #sigma = np.round(sigma).astype(np.int16)
     sigma_mode, num = mode(sigma, axis=None)
     print("mode of sigma is", sigma_mode, "with nb" , num, "median is", np.median(sigma))
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
+    #1/0
    # print(sigma_mode)
     #sigma_mode = 20#N * np.max(sigma)
    # print(sigma_mode, type(sigma_mode), float(sigma_mode))
 
     #m_hat = np.repeat(np.mean(data, axis=-1, keepdims=True), data.shape[-1], axis=-1)
-    m_hat = np.zeros_like(data, dtype=np.float64)
-    for idx in range(data.shape[-1]):
-        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
-    #m_hat = nlmeans(data, sigma_mode, rician=False)
+    #m_hat = np.zeros_like(data, dtype=np.float64)
+    #for idx in range(data.shape[-1]):
+    #    m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
+    """ISBI fix : smaller radius"""
+    m_hat = nlmeans(data, sigma_mode, rician=False, block_radius=3)
 
     nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #1/0
@@ -142,6 +145,8 @@ def main():
     ##data_stabilized = data_stabilized * (max_val - min_val) + min_val
     #print(data_stabilized.min(), data_stabilized.max())
     nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
+
+    print("Detected noise std was :", sigma_mode)
 
 
 if __name__ == "__main__":
