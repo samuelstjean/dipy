@@ -147,6 +147,7 @@ def main():
     nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
 
     print("Detected noise std was :", sigma_mode)
+    np.save(filename + "_sigma.npy", sigma_mode)
 
 
 if __name__ == "__main__":

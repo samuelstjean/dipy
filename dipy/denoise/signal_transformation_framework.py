@@ -106,13 +106,15 @@ def _fixed_point_k(eta, m, sigma, N):
 
 def _marcumq(a, b, M, eps=1e-10):
 
+    print(len(a), len(b), "a et b")
     if np.all(np.abs(b) < eps):
+        print("cas 1")
         return np.ones_like(b)
 
     if np.all(np.abs(a) < eps):
         #k = np.arange(M)
         #return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
-
+        print("cas 2")
         temp = 0
         for k in range(M):
             temp += b**(2*k) / (2**k * factorial(k))
@@ -126,13 +128,13 @@ def _marcumq(a, b, M, eps=1e-10):
     #print(np.sum(np.isnan(iv(0, z))), np.sum(np.isinf(iv(0, z))))
     #print(np.min(expz), np.min(z), np.min(a), np.min(b), np.max(z), np.max(a), np.max(b))
     if np.all(a < b):
-
+        print("cas 3")
         s = 1
         c = 0
         x = a/b
         d = x
         S = ive(0, z)
-
+        print(np.sum(b<eps),b[b<eps],a.min(), b.min(), b.dtype,"b<eps")
         for k in range(1, M):
 
             S += (d + 1/d) * ive(k, z)
@@ -141,7 +143,7 @@ def _marcumq(a, b, M, eps=1e-10):
         k += 1
 
     else:
-
+        print("cas 4")
         s = -1
         c = 1
         x = b/a
@@ -273,7 +275,7 @@ def _sigma2_eff(theta, m2, L):
 #    return 0.5 * mode(m2/trace_theta)
 
 
-def chi_to_gauss(m, eta, sigma, N, alpha=1e-10, eps=1e-10): #0.0005
+def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7): #0.0005
 
     #cdf = np.clip(1 - _marcumq(eta/sigma, m/sigma, N), alpha/2, 1 - alpha/2)
 
@@ -282,12 +284,15 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-10, eps=1e-10): #0.0005
 
     # # eta = 0 => cdf is zero
     # if eta > 0:
-    for idx in [np.logical_and(eta/sigma < m/sigma, np.abs(eta) > eps),
-                np.logical_and(eta/sigma >= m/sigma, np.abs(m) > eps),
+    #for  idx in ndindex(m.shape):
+
+    for idx in [np.logical_and(eta/sigma < m/sigma,  np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
+                np.logical_and(eta/sigma >= m/sigma, np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
                 np.abs(m) <= eps,
                 np.abs(eta) <= eps]:
 
         if cdf[idx].size > 0:
+            print(eta[idx].min(), m[idx].min())
             cdf[idx] = np.array(1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N))
 
     # Find outliers and clip them to the confidence interval limits
