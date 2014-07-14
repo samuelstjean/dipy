@@ -91,11 +91,11 @@ def main():
     print(sigma)
     print(np.percentile(sigma, 10.),  np.percentile(sigma, 90.))
 
-    #sigma = np.round(sigma).astype(np.int16)
+    #sigma_mode = np.load(filename + "_sigma.npy")
+
     sigma_mode, num = mode(sigma, axis=None)
-    print("mode of sigma is", sigma_mode, "with nb" , num, "median is", np.median(sigma))
+    print("mode of sigma is", sigma_mode, "with nb", num, "median is", np.median(sigma))
     np.save(filename + "_sigma.npy", sigma_mode)
-   # 1/0
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
 
     #m_hat = np.zeros_like(data, dtype=np.float64)
