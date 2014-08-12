@@ -1,10 +1,9 @@
-#TODO: Embed Numpy -> VTK Object conversion into this class
-
 import vtk
+import utils
 
 
 class Guillotine:
-    
+
     def __init__(self):
         self.plane = vtk.vtkPlane()
         self.nb_data_volumes = 0
@@ -21,7 +20,7 @@ class Guillotine:
         self.render_window.SetSize(800, 600)
 
         # Set the renderer
-        self.renderer.SetBackground(0.18, 0.18, 0.18)
+        self.renderer.SetBackground(0.0, 0.0, 0.0)
 
         # Add the renderer to the render window
         self.render_window.AddRenderer(self.renderer)
@@ -36,9 +35,7 @@ class Guillotine:
         #
         # Function: (Internal)
         #     Updates the plane that cuts the data volume (see vtkCommand).
-        
-        print obj, event
-        
+
         obj.GetPlane(self.plane)
 
     def add_actor(self, actor):
@@ -47,12 +44,12 @@ class Guillotine:
         #
         # Function: (Optional)
         #     Adds an actor to the rendering.
-        
+
         self.renderer.AddActor(actor)
 
-    def add_data_volume(self, data_volume, opacity=None):
+    def add_data_volume(self, data, opacity=None):
         # Parameters:
-        #     data_volume: vtkImageData
+        #     data: Numpy NdArray
         #     opacity: float
         #
         # Function: (required)
@@ -60,9 +57,13 @@ class Guillotine:
         #     corresponding opacity. Every data volume added should have the
         #     same extent and the one with the most components added first.
 
+        # Transform data into vtk tangible object
+        data_volume = utils.ndarray2vtkImageData(data)
+
         if self.nb_data_volumes > 0:
-            assert (data_volume.GetExtent() == self.blender.GetOutput().GetWholeExtent()), \
-                "Error, data_volume extent doesn't fit the actual extent. (" + \
+            assert (data_volume.GetExtent() ==
+                    self.blender.GetOutput().GetWholeExtent()), \
+                "data_volume extent doesn't fit the actual extent. (" + \
                 str(data_volume.GetExtent()) + \
                 " vs actual " + \
                 str(self.blender.GetOutput().GetWholeExtent()) + \
@@ -78,8 +79,10 @@ class Guillotine:
         # Function: (required)
         #     Show the cutting through an interactive widget to visualize data
         #     volumes.
-        
+
         # Get the blending result
+        assert (self.nb_data_volumes > 0), \
+            "No data volume, use function add_data_volume."
         data_volume = self.blender.GetOutput()
 
         # Get the volume properties
