@@ -1,174 +1,135 @@
-#!/usr/bin/env python
-# VTK5.8.0 doc : http://www.vtk.org/doc/release/5.8/html/index.html
+#TODO: Embed Numpy -> VTK Object conversion into this class
 
-# TODO
-# Understand the space
-# Add other actors
-# Visualize colors, Blend images and
-# Transparency possibilities ?
-# Get plane, matrix, normal, origin...
-
-import nibabel as nb
-import numpy as np
 import vtk
-from dipy.viz import fvtk
 
 
-def cut(data_source, other_data_source = None):
-    # Define variables
-    global plane
-    plane = vtk.vtkPlane()
-    blender = vtk.vtkImageBlend()
-    cutter = vtk.vtkCutter()
-    cutter_mapper = vtk.vtkPolyDataMapper()
-    cutter_actor = vtk.vtkActor()
-    interactor = vtk.vtkRenderWindowInteractor()
-    plane_widget = vtk.vtkImplicitPlaneWidget()
-    renderer = vtk.vtkRenderer()
-    render_window = vtk.vtkRenderWindow()
-    initial_normal = [1, 0, 0]
-
-    # Set the render window
-    render_window.SetSize(800, 600)
-
-    # Set the renderer
-    renderer.SetBackground(0.18, 0.18, 0.18)
-
-    # Add the renderer to the render window
-    render_window.AddRenderer(renderer)
-
-    # Add interactor to the render window
-    interactor.SetRenderWindow(render_window)
-
-    # Get the volume properties
-    xmin, xmax, ymin, ymax, zmin, zmax = data_source.GetWholeExtent()
-    origin = [(xmax+xmin)/2, (ymax+ymin)/2, (zmax+zmin)/2]
+class Guillotine:
     
-    # Blend images together
-    blender.SetInput(0, data_source.GetOutput())
-    if other_data_source is not None:
-        blender.SetInput(1, other_data_source.GetOutput())
-        blender.SetOpacity(0, 0.5)
-        blender.SetOpacity(1, 0.5)
+    def __init__(self):
+        self.plane = vtk.vtkPlane()
+        self.nb_data_volumes = 0
+        self.blender = vtk.vtkImageBlend()
+        self.cutter = vtk.vtkCutter()
+        self.cutter_mapper = vtk.vtkPolyDataMapper()
+        self.cutter_actor = vtk.vtkActor()
+        self.interactor = vtk.vtkRenderWindowInteractor()
+        self.plane_widget = vtk.vtkImplicitPlaneWidget()
+        self.renderer = vtk.vtkRenderer()
+        self.render_window = vtk.vtkRenderWindow()
 
-    # Set the cutter filters
-    cutter.SetInputConnection(blender.GetOutputPort())
-    cutter.SetCutFunction(plane)
+        # Set the render window
+        self.render_window.SetSize(800, 600)
 
-    # Set the cutter mappers
-    cutter_mapper.SetInputConnection(cutter.GetOutputPort())
+        # Set the renderer
+        self.renderer.SetBackground(0.18, 0.18, 0.18)
 
-    # Set the cutter actors
-    cutter_actor.SetMapper(cutter_mapper)
+        # Add the renderer to the render window
+        self.render_window.AddRenderer(self.renderer)
 
-    # Add cutter actors to the renderer
-    renderer.AddActor(cutter_actor)
+        # Add interactor to the render window
+        self.interactor.SetRenderWindow(self.render_window)
 
-    # Add space axes
-    renderer.AddActor(fvtk.axes(((xmax-xmin)/4, (ymax-ymin)/4, (zmax-zmin)/4)))
-    minimum_length = min((xmax-xmin), (ymax-ymin), (zmax-zmin))
-    renderer.AddActor(fvtk.axes((
-        minimum_length/4,
-        minimum_length/8,
-        minimum_length/8)))
+    def _myCallback(self, obj, event):
+        # Parameters:
+        #     obj: VTK object that calls this function
+        #     event: VTK event that occurred to call this function
+        #
+        # Function: (Internal)
+        #     Updates the plane that cuts the data volume (see vtkCommand).
+        
+        print obj, event
+        
+        obj.GetPlane(self.plane)
 
-    plane_widget.SetInput(data_source.GetOutput())
-    plane_widget.SetInteractor(interactor)
-    plane_widget.AddObserver("InteractionEvent", myCallback)
+    def add_actor(self, actor):
+        # Parameters:
+        #     actor: vtkActor
+        #
+        # Function: (Optional)
+        #     Adds an actor to the rendering.
+        
+        self.renderer.AddActor(actor)
 
-    plane_widget.SetEnabled(1)
-    plane_widget.SetDrawPlane(0)
-    plane_widget.SetTubing(0)
-    plane_widget.OutlineTranslationOff()
-    plane_widget.OutsideBoundsOff()
-    plane_widget.SetPlaceFactor(1)
-    plane_widget.PlaceWidget()
-    plane_widget.SetOrigin(
-        origin[0],
-        origin[1],
-        origin[2])
-    plane_widget.SetNormal(
-        initial_normal[0],
-        initial_normal[1],
-        initial_normal[2])
-    plane_widget.GetPlane(plane)
+    def add_data_volume(self, data_volume, opacity=None):
+        # Parameters:
+        #     data_volume: vtkImageData
+        #     opacity: float
+        #
+        # Function: (required)
+        #     Adds a data volume to the blending with its
+        #     corresponding opacity. Every data volume added should have the
+        #     same extent and the one with the most components added first.
 
-    # Render the scene
-    renderer.Render()
+        if self.nb_data_volumes > 0:
+            assert (data_volume.GetExtent() == self.blender.GetOutput().GetWholeExtent()), \
+                "Error, data_volume extent doesn't fit the actual extent. (" + \
+                str(data_volume.GetExtent()) + \
+                " vs actual " + \
+                str(self.blender.GetOutput().GetWholeExtent()) + \
+                ")"
+        if opacity is None:
+            opacity = 0.5
+        self.blender.SetInput(self.nb_data_volumes, data_volume)
+        self.blender.SetOpacity(self.nb_data_volumes, opacity)
+        self.blender.UpdateWholeExtent()
+        self.nb_data_volumes += 1
 
-    # Initialize the interactor
-    interactor.Initialize()
+    def cut(self):
+        # Function: (required)
+        #     Show the cutting through an interactive widget to visualize data
+        #     volumes.
+        
+        # Get the blending result
+        data_volume = self.blender.GetOutput()
 
-    # Render the window
-    render_window.Render()
+        # Get the volume properties
+        xdim, ydim, zdim = data_volume.GetDimensions()
+        xmin, xmax, ymin, ymax, zmin, zmax = data_volume.GetExtent()
+        origin = [(xmax+xmin)/2, (ymax+ymin)/2, (zmax+zmin)/2]
+        initial_normal = [1, 0, 0]
 
-    # Start the interactor
-    interactor.Start()
+        # Set the cutter filters
+        self.cutter.SetInput(data_volume)
+        self.cutter.SetCutFunction(self.plane)
 
+        # Set the cutter mappers
+        self.cutter_mapper.SetInputConnection(self.cutter.GetOutputPort())
 
-# The callback function
-def myCallback(obj, event):
-    global plane
-    obj.GetPlane(plane)
+        # Set the cutter actors
+        self.cutter_actor.SetMapper(self.cutter_mapper)
 
+        # Add cutter actors to the renderer
+        self.renderer.AddActor(self.cutter_actor)
 
-def load_data(filename):
-    return np.array(nb.load(filename).get_data())
-    
+        self.plane_widget.SetInput(data_volume)
+        self.plane_widget.SetInteractor(self.interactor)
+        self.plane_widget.AddObserver("InteractionEvent", self._myCallback)
 
-def get_vtk_data(ndarray):
-    nb_composites = len(ndarray.shape)
+        self.plane_widget.SetEnabled(1)
+        self.plane_widget.SetDrawPlane(0)
+        self.plane_widget.SetTubing(0)
+        self.plane_widget.OutlineTranslationOff()
+        self.plane_widget.OutsideBoundsOff()
+        self.plane_widget.SetPlaceFactor(1)
+        self.plane_widget.PlaceWidget()
+        self.plane_widget.SetOrigin(
+            origin[0],
+            origin[1],
+            origin[2])
+        self.plane_widget.SetNormal(
+            initial_normal[0],
+            initial_normal[1],
+            initial_normal[2])
+        self.plane_widget.GetPlane(self.plane)
 
-    if nb_composites == 3:
-        [sx, sy, sz] = ndarray.shape
-        nb_channels = 1
-    elif nb_composites == 4:
-        [sx, sy, sz, nb_channels] = ndarray.shape
-    else:
-        exit()
-    
-    # Convert data to uint8 properly
-    uint8_data = rescale_to_uint8(ndarray)
-    uint8_data = np.swapaxes(uint8_data, 0, 2)
-    uint8_data = uint8_data[::-1, :, :]
-#     print uint8_data.shape
-    string_data = uint8_data.tostring()
+        # Render the scene
+        self.renderer.Render()
 
-    # Set data importer
-    data_source = vtk.vtkImageImport()
-    data_source.SetNumberOfScalarComponents(nb_channels)
-    data_source.SetDataScalarTypeToUnsignedChar()
-    data_source.SetWholeExtent(0, sx-1, 0, sy-1, 0, sz-1)
-    data_source.SetDataExtentToWholeExtent()
-    data_source.CopyImportVoidPointer(string_data, len(string_data))
-#     data_source.SetDataOrigin(sx/2, sy/2, sz/2)
-    data_source.Update()
-    
-    return data_source
+        # Initialize the interactor
+        self.interactor.Initialize()
 
-def rescale_to_uint8(data):
-    temp = np.array(data, dtype=np.float64)
-    temp -= np.min(temp)
-    if np.max(temp) != 0.0:
-        temp /= np.max(temp)
-        temp *= 255.0
-    temp = np.array(np.round(temp), dtype=np.uint8)
-    return temp
+        # Render the window
+        self.render_window.Render()
 
-
-def main():
-    # Get some data
-    vtk_data = None
-    other_vtk_data = None
-    data = load_data("/home/algo/Documents/data/set2/b0.nii")
-    other_data = load_data("/home/algo/Documents/data/set2/fa.nii")
-    
-    vtk_data = get_vtk_data(data)
-    other_vtk_data = get_vtk_data(other_data)
-    
-#     image_plane_widget.cut(data_source)
-    cut(vtk_data, other_vtk_data)
-#     implicit_plane_image_slicing.cut(data_source)
-
-if __name__ == "__main__":
-    main()
+        # Start the interactor
+        self.interactor.Start()
