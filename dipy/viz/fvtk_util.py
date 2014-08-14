@@ -25,7 +25,10 @@ def numpy_to_vtk_colors(colors):
     
     if colors are not already in UNSIGNED_CHAR
         you may need to multiply by 255. 
-        ex: vtk_colors = numpy_to_vtk_colors(255 * float_array)
+        
+    Example
+    ----------
+    >>>  vtk_colors = numpy_to_vtk_colors(255 * float_array)
     """
     vtk_colors = ns.numpy_to_vtk(np.asarray(colors), deep=True, 
                                  array_type=vtk.VTK_UNSIGNED_CHAR)
@@ -36,7 +39,9 @@ def set_input(vtk_object, input):
     """ Generic input for vtk data, 
         depending of the type of input and vtk version
 
-    ex : poly_mapper = set_input(vtk.vtkPolyDataMapper(), poly_data)
+    Example
+    ----------
+    >>> poly_mapper = set_input(vtk.vtkPolyDataMapper(), poly_data)
     """
     if isinstance(input,vtk.vtkPolyData):
         if vtk.VTK_MAJOR_VERSION <= 5:
@@ -51,7 +56,7 @@ def set_input(vtk_object, input):
 
 
 def trilinear_interp(input_array, indices):
-    """ Evaluate the input_array data at the indices given
+    """ Evaluate the input_array data at the given indices
     """
     
     assert (input_array.ndim > 2 )," array need to be at least 3dimensions"

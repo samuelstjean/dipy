@@ -114,10 +114,8 @@ def streamtube(lines, colors=None, opacity=1, linewidth=0.01, tube_sides=9,
 
     # Color Scale with a lookup table
     if is_colormap:
-
         if lookup_colormap is None:
             lookup_colormap = colormap_lookup_table()
-
         poly_mapper.SetLookupTable(lookup_colormap)
         poly_mapper.UseLookupTableScalarRangeOn()
         poly_mapper.Update()
@@ -222,7 +220,6 @@ def line(lines, colors=None, opacity=1, linewidth=1,
         poly_mapper.UseLookupTableScalarRangeOn()
         poly_mapper.Update()
 
-        
     # Set Actor
     actor = vtk.vtkActor()
     actor.SetMapper(poly_mapper)
