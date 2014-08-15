@@ -66,7 +66,7 @@ def button_widget(iren, callback):
     #button_rep.SetPlaceFactor(1)
 
     #button_rep.PlaceWidget((0.75, 0, 0), (250, 450))
-
+    #http://vtk.org/gitweb?p=VTK.git;a=blob;f=Interaction/Widgets/Testing/Cxx/TestButtonWidget.cxx
     #http://vtk.org/Wiki/VTK/Examples/Cxx/Widgets/TexturedButtonWidget
     button.SetEnabled(True)
 

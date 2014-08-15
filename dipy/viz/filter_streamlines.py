@@ -1,7 +1,13 @@
 import vtk
-import fvtk
-from dipy.align.streamlinear import center_streamlines
+import numpy as np
 from nibabel import trackvis as tv
+from fvtk_widgets import slider_widget, button_widget
+from fvtk_actors import line
+
+
+def center_streamlines(streamlines):
+    center = np.mean(np.concatenate(streamlines, axis=0), axis=0)
+    return [s - center for s in streamlines], center
 
 
 def load_bundle(name):
@@ -10,9 +16,10 @@ def load_bundle(name):
     streamlines = [s[0] for s in streams]
     return streamlines
 
+
 def load_big_data():
 
-    fname = '/home/eleftherios/Data/fancy_data/2013_02_08_Gabriel_Girard/streamlines_500K.trk'
+    fname = '/home/eleftherios/Data/fancy_data/2013_02_08_Gabriel_Girard/streamlines_100K.trk'
     streams, hdr = tv.read(fname)
     streamlines = [s[0] for s in streams]
     return streamlines
@@ -37,63 +44,21 @@ if __name__ == '__main__':
 
     streamlines, _ = center_streamlines(streamlines)
 
-    stream_actor, stream_poly_data = fvtk.line(streamlines,
-                                        fvtk.line_colors(streamlines),
-                                        mapper=None)
+    stream_actor = line(streamlines)
 
-    # cube = vtk.vtkCubeSource()
-    # cube.SetBounds(-10.0, 10.0, -10.0, 10.0, -10.0, 10.0)
-    # cube.Update()
-
-    # cubeMapper = vtk.vtkPolyDataMapper()
-    # cubeMapper.SetInput(cube.GetOutput())
-    # cubeActor = vtk.vtkActor()
-    # cubeActor.GetProperty().SetColor(1.0, 0.3, 0.3)
-    # cubeActor.SetMapper(cubeMapper)
-
-    # # Create 3D cells so vtkImplicitDataSet evaluates inside vs outside correctly
-    # tri = vtk.vtkDelaunay3D()
-    # tri.SetInput(cube.GetOutput())
-    # tri.Update()
-    # #tri.BoundingTriangulationOff()
-
-    # # vtkImplicitDataSet needs some scalars to interpolate to find inside/outside
-    # elev = vtk.vtkElevationFilter()
-    # elev.SetInputConnection(tri.GetOutputPort())
-    # # elev.SetScalarRange(90, 110)
-    # elev.Update()
-
-    # implicit = vtk.vtkImplicitDataSet()
-    # implicit.SetDataSet(elev.GetOutput())
-    #implicit.Update()
+    stream_poly_data = stream_actor.GetMapper().GetInput()
 
     # implicit = vtk.vtkBox()
     implicit = vtk.vtkSphere()
     implicit.SetCenter(0, 0, 0)
     implicit.SetRadius(10.)
 
-
     diameter = 100*np.sqrt(2)/2.
-
-
-    # implicit.SetBounds(-diameter, diameter, -diameter, diameter,
-    #                    -diameter, diameter)
 
     cube = vtk.vtkCubeSource()
     cube.SetBounds(-diameter, diameter, -diameter, diameter,
                    -diameter, diameter)
     cube.Update()
-
-    # tri = vtk.vtkDelaunay3D()
-    # tri.SetInput(cube.GetOutput())
-    # tri.BoundingTriangulationOff()
-
-    # # vtkImplicitDataSet needs some scalars to interpolate to find inside/outside
-    # elev = vtk.vtkElevationFilter()
-    # elev.SetInputConnection(tri.GetOutputPort())
-
-    # implicit = vtk.vtkImplicitDataSet()
-    # implicit.SetDataSet(elev.GetOutput())
 
     extract_geometry = vtk.vtkExtractPolyDataGeometry()
     extract_geometry.SetInput(stream_poly_data)
@@ -106,12 +71,12 @@ if __name__ == '__main__':
     extracted_mapper.SetInputConnection(extract_geometry.GetOutputPort())
     extracted_mapper.GlobalImmediateModeRenderingOn()
 
-    # extracted_actor = vtk.vtkActor()
-    # extracted_actor.SetMapper(extracted_mapper)
-
-    extracted_actor = vtk.vtkLODActor()
+    extracted_actor = vtk.vtkActor()
     extracted_actor.SetMapper(extracted_mapper)
-    extracted_actor.SetNumberOfCloudPoints(100000)
+
+    # extracted_actor = vtk.vtkLODActor()
+    # extracted_actor.SetMapper(extracted_mapper)
+    # extracted_actor.SetNumberOfCloudPoints(100000)
 
     ren = vtk.vtkRenderer()
     #ren.AddActor(stream_actor)
@@ -130,11 +95,20 @@ if __name__ == '__main__':
         radius = 5 * max(transform.GetScale())
         implicit.SetRadius(radius)
 
-
     #ren.AddActor(fvtk.axes(scale=(100, 100, 100)))
 
     stream_actor.GetProperty().SetOpacity(.2)
     #ren.AddActor(stream_actor)
+
+    def x_filter(obj, event):
+
+        global implicit
+        value = np.round(obj.GetSliderRepresentation().GetValue())
+
+        center = implicit.GetCenter()
+        print(center)
+        implicit.SetCenter(center[0] + value, center[1], center[2])
+        #obj.SetValue(value)
 
     iren = vtk.vtkRenderWindowInteractor()
     iren.SetRenderWindow(renWin)
@@ -150,7 +124,28 @@ if __name__ == '__main__':
     box_widget.AddObserver('InteractionEvent', filter_streamlines)
     box_widget.On()
 
+    def press_button(obj, event):
+        print('Button pressed')
 
+    button = button_widget(iren, press_button)
+
+
+    slider = slider_widget(iren, x_filter,
+                           min_value=-20, max_value=20,
+                           value=0, label='X')
+
+    slider2 = slider_widget(iren, x_filter,
+                            min_value=-20, max_value=20,
+                            value=0, label='Y',
+                            coord1=(0.8, 0.3), coord2=(0.9, 0.3))
+
+
+
+
+
+    iren.Initialize()
+
+    renWin.Render()
     iren.Start()
 
 
