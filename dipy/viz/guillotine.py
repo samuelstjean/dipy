@@ -1,4 +1,3 @@
-# TODO: Show some hair on this cut head
 # TODO: World coordinate system
 # TODO: Support VTK6
 # TODO: Add support for LUT input
