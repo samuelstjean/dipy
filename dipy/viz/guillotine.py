@@ -1,3 +1,11 @@
+# TODO: Show some hair on this cut head
+# TODO: World coordinate system
+# TODO: Support VTK6
+# TODO: Add support for LUT input
+# TODO: Add key events management (opacity,XYZ axes, translation, rotation
+# TODO: Put utils in fvtk_utils
+# TODO: Adapt assertions to dipy style
+
 import vtk
 import utils
 
@@ -47,7 +55,7 @@ class Guillotine:
 
         self.renderer.AddActor(actor)
 
-    def add_data_volume(self, data, opacity=None):
+    def add_data_volume(self, data, opacity=0.5):
         # Parameters:
         #     data: Numpy NdArray
         #     opacity: float
@@ -68,8 +76,6 @@ class Guillotine:
                 " vs actual " + \
                 str(self.blender.GetOutput().GetWholeExtent()) + \
                 ")"
-        if opacity is None:
-            opacity = 0.5
         self.blender.SetInput(self.nb_data_volumes, data_volume)
         self.blender.SetOpacity(self.nb_data_volumes, opacity)
         self.blender.UpdateWholeExtent()
