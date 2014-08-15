@@ -47,7 +47,6 @@ def ndarray2vtkImageData(data):
     # Convert data to uint8 properly
     uint8_data = rescale_to_uint8(data)
     uint8_data = np.swapaxes(uint8_data, 0, 2)
-    uint8_data = uint8_data[::-1, :, :]
     string_data = uint8_data.tostring()
 
     # Set data importer
