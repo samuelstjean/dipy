@@ -42,19 +42,19 @@ def slider_widget(iren, callback, min_value=0, max_value=255, value=125,
 def button_widget(iren, callback):
 
     image1 = vtk.vtkPNGReader()
-    image1.SetFileName('/home/eleftherios/Desktop/dipy_logo.png')
+    image1.SetFileName('/home/eleftherios/Downloads/dipy_runner.png')
     image1.Update()
 
     image2 = vtk.vtkPNGReader()
-    image2.SetFileName('/home/eleftherios/Downloads/dipy_runner.png')
+    image2.SetFileName('/home/eleftherios/Downloads/dipy_runner2.png')
     image2.Update()
 
 
     #button_rep = vtk.vtkProp3DButtonRepresentation()
     button_rep = vtk.vtkTexturedButtonRepresentation2D()
     button_rep.SetNumberOfStates(2)
-    button_rep.SetButtonTexture(0, image2.GetOutput())
-    button_rep.SetButtonTexture(1, image1.GetOutput())
+    button_rep.SetButtonTexture(0, image1.GetOutput())
+    button_rep.SetButtonTexture(1, image2.GetOutput())
 
     #button_rep.FollowCameraOn()
 
@@ -66,6 +66,7 @@ def button_widget(iren, callback):
     #button_rep.SetPlaceFactor(1)
 
     #button_rep.PlaceWidget((0.75, 0, 0), (250, 450))
+    # see state changed
     #http://vtk.org/gitweb?p=VTK.git;a=blob;f=Interaction/Widgets/Testing/Cxx/TestButtonWidget.cxx
     #http://vtk.org/Wiki/VTK/Examples/Cxx/Widgets/TexturedButtonWidget
     button.SetEnabled(True)
