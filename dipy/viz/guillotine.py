@@ -1,9 +1,9 @@
 # TODO: World coordinate system
-# TODO: Support VTK6
 # TODO: Add support for LUT input
 # TODO: Add key events management (opacity,XYZ axes, translation, rotation
-# TODO: Put utils in fvtk_utils
 # TODO: Adapt assertions to dipy style
+# TODO: Support VTK6
+# TODO: Put utils in fvtk_utils
 
 import vtk
 import utils
@@ -15,25 +15,10 @@ class Guillotine:
         self.plane = vtk.vtkPlane()
         self.nb_data_volumes = 0
         self.blender = vtk.vtkImageBlend()
-        self.cutter = vtk.vtkCutter()
-        self.cutter_mapper = vtk.vtkPolyDataMapper()
-        self.cutter_actor = vtk.vtkActor()
-        self.interactor = vtk.vtkRenderWindowInteractor()
-        self.plane_widget = vtk.vtkImplicitPlaneWidget()
         self.renderer = vtk.vtkRenderer()
-        self.render_window = vtk.vtkRenderWindow()
-
-        # Set the render window
-        self.render_window.SetSize(800, 600)
-
+        
         # Set the renderer
         self.renderer.SetBackground(0.0, 0.0, 0.0)
-
-        # Add the renderer to the render window
-        self.render_window.AddRenderer(self.renderer)
-
-        # Add interactor to the render window
-        self.interactor.SetRenderWindow(self.render_window)
 
     def _myCallback(self, obj, event):
         # Parameters:
@@ -85,59 +70,70 @@ class Guillotine:
         #     Show the cutting through an interactive widget to visualize data
         #     volumes.
 
-        # Get the blending result
+        # Get blending result
         assert (self.nb_data_volumes > 0), \
             "No data volume, use function add_data_volume."
         data_volume = self.blender.GetOutput()
 
-        # Get the volume properties
+        # Get volume properties
         xdim, ydim, zdim = data_volume.GetDimensions()
         xmin, xmax, ymin, ymax, zmin, zmax = data_volume.GetExtent()
         origin = [(xmax+xmin)/2, (ymax+ymin)/2, (zmax+zmin)/2]
         initial_normal = [1, 0, 0]
 
-        # Set the cutter filters
-        self.cutter.SetInput(data_volume)
-        self.cutter.SetCutFunction(self.plane)
+        # Set cutter filter
+        cutter = vtk.vtkCutter()
+        cutter.SetInput(data_volume)
+        cutter.SetCutFunction(self.plane)
 
         # Set the cutter mappers
-        self.cutter_mapper.SetInputConnection(self.cutter.GetOutputPort())
+        cutter_mapper = vtk.vtkPolyDataMapper()
+        cutter_mapper.SetInputConnection(cutter.GetOutputPort())
 
-        # Set the cutter actors
-        self.cutter_actor.SetMapper(self.cutter_mapper)
+        # Set cutter actor
+        cutter_actor = vtk.vtkActor()
+        cutter_actor.SetMapper(cutter_mapper)
+        self.add_actor(cutter_actor)
+        
+        # Set render window
+        render_window = vtk.vtkRenderWindow()
+        render_window.SetSize(800, 600)
+        render_window.AddRenderer(self.renderer)
+        
+        # Set interactor
+        interactor = vtk.vtkRenderWindowInteractor()
+        interactor.SetRenderWindow(render_window)
 
-        # Add cutter actors to the renderer
-        self.renderer.AddActor(self.cutter_actor)
-
-        self.plane_widget.SetInput(data_volume)
-        self.plane_widget.SetInteractor(self.interactor)
-        self.plane_widget.AddObserver("InteractionEvent", self._myCallback)
-
-        self.plane_widget.SetEnabled(1)
-        self.plane_widget.SetDrawPlane(0)
-        self.plane_widget.SetTubing(0)
-        self.plane_widget.OutlineTranslationOff()
-        self.plane_widget.OutsideBoundsOff()
-        self.plane_widget.SetPlaceFactor(1)
-        self.plane_widget.PlaceWidget()
-        self.plane_widget.SetOrigin(
+        # Set plane widget
+        plane_widget = vtk.vtkImplicitPlaneWidget()
+        plane_widget.SetInput(data_volume)
+        plane_widget.SetInteractor(interactor)
+        plane_widget.AddObserver("InteractionEvent", self._myCallback)
+        plane_widget.SetEnabled(1)
+        plane_widget.SetDrawPlane(0)
+        plane_widget.SetTubing(0)
+        plane_widget.OutlineTranslationOff()
+        plane_widget.OutsideBoundsOff()
+        plane_widget.SetPlaceFactor(1)
+        plane_widget.PlaceWidget()
+        plane_widget.SetOrigin(
             origin[0],
             origin[1],
             origin[2])
-        self.plane_widget.SetNormal(
+        plane_widget.SetNormal(
             initial_normal[0],
             initial_normal[1],
             initial_normal[2])
-        self.plane_widget.GetPlane(self.plane)
+        plane_widget.GetPlane(self.plane)
 
-        # Render the scene
+        # Render scene
         self.renderer.Render()
 
-        # Initialize the interactor
-        self.interactor.Initialize()
-
-        # Render the window
-        self.render_window.Render()
-
-        # Start the interactor
-        self.interactor.Start()
+        # Initialize interactor
+        interactor.Initialize()
+        
+        # Render window
+        render_window.Render()
+        
+        # Start interactor
+        interactor.Start()
