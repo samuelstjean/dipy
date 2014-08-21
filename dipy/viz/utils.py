@@ -14,11 +14,13 @@ def rescale_to_uint8(data):
     #    Numpy NdArray
 
     temp = np.array(data, dtype=np.float64)
+    temp[np.isnan(temp)] = 0
     temp -= np.min(temp)
     if np.max(temp) != 0.0:
         temp /= np.max(temp)
         temp *= 255.0
     temp = np.array(np.round(temp), dtype=np.uint8)
+
     return temp
 
 
@@ -58,5 +60,4 @@ def ndarray2vtkImageData(data):
     data_source.CopyImportVoidPointer(string_data, len(string_data))
     data_source.Update()
 
-    # Return vtkImageData object
     return data_source.GetOutput()
