@@ -3,15 +3,22 @@ import vtk
 
 
 def rescale_to_uint8(data):
-    # Parameters:
-    #     data: Numpy NdArray
-    #
-    # Function:
-    #     Rescales a Numpy NdArray to 8 bits data by scaling the min and max
-    #     values found from 0 to 255.
-    #
-    # Return:
-    #    Numpy NdArray
+    """ Rescales value of a ndarray to 8 bits unsigned integer
+            This function rescales the values of the input between 0 and 255,
+            then copies it to a new 8 bits unsigned integer array.
+
+        Parameters
+        ----------
+            data : ndarray
+
+        Return
+        ------
+            uint8 ndarray
+
+        Note
+        ----
+            NAN are clipped to 0. If min equals max, result will be all 0.
+    """
 
     temp = np.array(data, dtype=np.float64)
     temp[np.isnan(temp)] = 0
@@ -25,16 +32,19 @@ def rescale_to_uint8(data):
 
 
 def ndarray2vtkImageData(data):
-    # Parameters:
-    #     data: Numpy NdArray
-    #
-    # Function:
-    #     Transforms a Numpy NdArray into a vtk tangible vtkImageData object.
-    #     This function uses rescale_to_uint8 so it can be streamed as a
-    #     unsigned char string to vtk.
-    #
-    # Return:
-    #    vtkImageData object
+    """ Transforms ndarray into VTK tangible object
+            Transforms a Numpy NdArray into a uint8 vtkImageData object. This
+            function uses rescale_to_uint8 so it can be streamed as a unsigned
+            char string to vtk.
+
+        Parameters
+        ----------
+            data : ndarray
+
+        Return
+        ------
+            vtkImageData
+    """
 
     nb_composites = len(data.shape)
 
