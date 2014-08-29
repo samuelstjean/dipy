@@ -10,11 +10,11 @@ import argparse
 
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
 from scipy.stats import mode
-#from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import gaussian_filter
 from dipy.denoise.nlmeans import nlmeans
 
 DESCRIPTION = """
-    Convenient script to transform noisy rician/chi-squared signals into
+    Convenient script to transform noisy rician/non central chi signals into
     gaussian distributed signals.
 
     Reference:
@@ -83,10 +83,16 @@ def main():
     from time import time
     deb = time()
 
+
+    m_hat = np.zeros_like(data, dtype=np.float64)
+    for idx in range(data.shape[-1]):
+        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
+
+
     for idx in range(data.shape[-2]):
         print("Now processing slice", idx+1, "out of", data.shape[-2])
 
-        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
+        sigma[idx], mask_noise[..., idx] = piesno(m_hat[..., idx, :],  N)
 
     print(sigma)
     print(np.percentile(sigma, 10.),  np.percentile(sigma, 90.))
@@ -98,13 +104,20 @@ def main():
     np.save(filename + "_sigma.npy", sigma_mode)
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
 
-    #m_hat = np.zeros_like(data, dtype=np.float64)
-    #for idx in range(data.shape[-1]):
-    #    m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
-    """ISBI fix : smaller radius"""
-    m_hat = nlmeans(data, sigma_mode, rician=False, block_radius=3)
+    m_hat = np.zeros_like(data, dtype=np.float64)
+    for idx in range(data.shape[-1]):
+        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
 
-    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
+    ###m_hat = nlmeans(data, sigma_mode, rician=False, block_radius=3)
+    #m_hat = data
+
+
+
+    #m_hat = nib.load('../dwis.nii.gz').get_data()
+##    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
+    #sigma_mode=515.
+
+
 
     eta = fixed_point_finder(m_hat, sigma_mode, N)
 

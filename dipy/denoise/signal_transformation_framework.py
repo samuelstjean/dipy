@@ -16,6 +16,7 @@ from dipy.core.ndindex import ndindex
 #from scipy import stats
 
 from time import time
+from copy import copy
 
 
 def _inv_cdf_gauss(y, eta, sigma):
@@ -121,7 +122,7 @@ def _marcumq(a, b, M, eps=1e-10):
 
         return np.exp(-b**2/2) * temp
 
-    z = a*b
+    z = a * b
     #expz = np.exp(-z)
     k = 0
     #print(np.sum(np.isnan(expz)), np.sum(np.isinf(expz)))
@@ -131,7 +132,7 @@ def _marcumq(a, b, M, eps=1e-10):
     #    print("cas 3")
         s = 1
         c = 0
-        x = a/b
+        x = a / b
         d = x
         S = ive(0, z)
        # print(np.sum(b<eps),b[b<eps],a.min(), b.min(), b.dtype,"b<eps")
@@ -146,7 +147,7 @@ def _marcumq(a, b, M, eps=1e-10):
     #    print("cas 4")
         s = -1
         c = 1
-        x = b/a
+        x = b / a
         k = M
         d = x**M
         S = np.zeros_like(z, dtype=np.float64)
@@ -277,14 +278,7 @@ def _sigma2_eff(theta, m2, L):
 
 def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 
-    #cdf = np.clip(1 - _marcumq(eta/sigma, m/sigma, N), alpha/2, 1 - alpha/2)
-
-    # m = np.array(m)
     cdf = np.zeros_like(m, dtype=np.float64)
-
-    # # eta = 0 => cdf is zero
-    # if eta > 0:
-    #for  idx in ndindex(m.shape):
 
     for idx in [np.logical_and(eta/sigma < m/sigma,  np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
                 np.logical_and(eta/sigma >= m/sigma, np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
@@ -292,23 +286,18 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
                 np.abs(eta) <= eps]:
 
         if cdf[idx].size > 0:
-            #print(eta[idx].min(), m[idx].min())
             cdf[idx] = np.array(1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N))
 
     # Find outliers and clip them to the confidence interval limits
-    #print(np.sum(cdf < alpha/2), np.sum(cdf > 1 - alpha/2), np.sum(np.logical_or(alpha/2 < cdf, cdf < 1 - alpha/2)))
-    #print(np.sum(np.isnan(cdf)), np.sum(np.isinf(cdf)))
-    #cdf[np.isnan(cdf)] = 0
-    #cdf[np.isinf(cdf)] = 1
     print("clip cdf < ", np.sum(cdf < alpha/2), " > ", np.sum(cdf > 1 - alpha/2), "out of", cdf.size, cdf.min(), cdf.max())
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
 
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-3):
+def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-8):
 
-    m = np.array(m_hat, dtype=np.float64)
+    m = copy(m_hat).astype(np.float64)
     delta = _beta(N) * sigma - m_hat
     out = np.zeros_like(delta)
     t0 = np.zeros_like(delta)
@@ -380,11 +369,17 @@ def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-3):
 
             sum_ind0 = np.sum(ind)
 
-        if np.all(delta[idx] > 0):
-            out[idx] = -t1[idx]
-            #return -t1
-        if np.all(delta[idx] < 0):
-            out[idx] = t1[idx]
+        # if np.all(delta[idx] > 0):
+        #     out[idx] = -t1[idx]
+        #
+        # if np.all(delta[idx] < 0):
+        #     out[idx] = t1[idx]
+
+    for idx in ndindex(delta.shape):
+        if delta[idx] > 0:
+            t1[idx] *= -1
+
+    return t1
 
     print(np.sum(np.isnan(out)),  np.sum(np.isinf(out)))
     return out
