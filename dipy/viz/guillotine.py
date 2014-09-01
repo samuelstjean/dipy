@@ -1,5 +1,4 @@
 #TODO
-#    Documentation
 #    Command line
 #    Tutorial
 #    Support VTK6
@@ -24,14 +23,19 @@ class Guillotine:
         -------
             add_data_volume :    Adds volume data in the blending
             add_actor :          Adds actor to the renderer (optional)
-            build :              Creates the guillotine viewer for rendering
-            set_plane :          Set the current slice plane origin and normal
-            set_plane_angle :    Clip the plane to a standard angle
+            build :              Sets the guillotine ready for showing or
+                                 snapshot.
+            set_plane :          Sets the plane origin and normal
+            set_plane_angle :    Sets the plane to a standard angle
             move_camera :        Move the camera from its current position
-            set_view_angle :     Move the camera and plane to a standard angle
-            toggle_axes :        Toggles the display of axes
-            snapshot :           Takes a snapshot of the rendering
-            show :               Displays the interactive window
+                                 around the object
+            set_camera :         Sets the camera's position around the object
+            set_camera_angle :   Sets the camera to a standard angle
+            set_view_angle :     Sets the plane and camera to a standard angle
+            toggle_axes :        Toggles the display of the axes
+            show :               Displays an interactive window of the current
+                                 view
+            snapshot :           Takes a snapshot of the current view
     
         Example
         -------
@@ -57,6 +61,7 @@ class Guillotine:
         g.show() 
         
         """
+        
         self.nb_data_volumes = 0
         self.plane = vtk.vtkPlane()
         self.blender = vtk.vtkImageBlend()
@@ -243,6 +248,7 @@ class Guillotine:
     """
     INPUT METHODS
     -------------
+        Primary functions to build a guillotine
     """
 
     def add_data_volume(self, data, opacity=0.5, affine=None):
@@ -316,7 +322,10 @@ class Guillotine:
         self.renderer.AddActor(actor)
     
     def build(self):
-        """
+        """Sets the guillotine ready for showing or snapshot.
+            This function must be called after add_data_volume as been used at
+            least once. add_actor must be called before this one too. It sets
+            the renderer, window, interactor and widget ready for rendering.
         """
 
         # Get blending result
@@ -374,16 +383,25 @@ class Guillotine:
         self.add_actor(self.axes)
 
         # Initialize the view angle
-        self.set_view_angle("axial")
+        self.set_camera_angle("axial")
 
     """
     DISPLAY METHODS
     ---------------
+        Optional functions to change the guillotine's view
     """
 
     def set_plane(self, origin=None, normal=None):
+        """Sets the plane origin and normal
+        
+        Parameters
+        ----------
+            origin : tuple of size 3
+                (x, y, z) position of the plane's origin
+            normal : tuple of size 3
+                (x, y, z) direction of the normal
         """
-        """
+
         if origin is not None:
             self.plane_widget.SetOrigin(origin)
         if normal is not None:
@@ -392,8 +410,13 @@ class Guillotine:
         self.plane_widget.InvokeEvent("InteractionEvent")
 
     def set_plane_angle(self, angle):
+        """Sets the plane to a standard angle
+        
+        Parameters
+        ----------
+            angle : string ("sagital", "coronal" or "axial")
         """
-        """
+
         if angle == "sagital":
             self.plane_widget.SetNormal(1, 0, 0)
         elif angle == "coronal":
@@ -407,8 +430,21 @@ class Guillotine:
         self.plane_widget.InvokeEvent("InteractionEvent")
     
     def move_camera(self, azimuth=0, elevation=0, roll=0, zoom=0):
+        """Move the camera from its current position around the object
+
+        Parameters
+        ----------
+            azimuth : float
+                angle in degrees around the Y axis of the object
+            elevation : float
+                angle in degrees relative to the Y axis of the object
+            roll : float
+                angle in degrees around the projection axis
+            zoom : float
+                ratio of the angle of view of the camera's virtual lens
+                (1.0 is 30 degrees, 2.0 is 15 degrees)
         """
-        """
+
         cam = self.renderer.GetActiveCamera()
         cam.Azimuth(azimuth)
         cam.Elevation(elevation)
@@ -416,10 +452,34 @@ class Guillotine:
         cam.Zoom(zoom)
         
         self.interactor.Render()
+
+    def set_camera(self, azimuth=0, elevation=0, roll=0, zoom=0):
+        """Sets the camera's position around the object
+        
+        Parameters
+        ----------
+            azimuth : float
+                angle in degrees around the Y axis of the object
+            elevation : float
+                angle in degrees relative to the Y axis of the object
+            roll : float
+                angle in degrees around the projection axis
+            zoom : float
+                ratio of the angle of view of the camera's virtual lens
+                (1.0 is 30 degrees, 2.0 is 15 degrees)
+        """
+
+        self.set_camera_angle("axial")
+        move_camera(azimuth, elevation, roll, zoom)
     
-    def set_view_angle(self, angle):
+    def set_camera_angle(self, angle):
+        """Sets the camera to a standard angle
+        
+        Parameters
+        ----------
+            angle : string ("sagital", "coronal" or "axial")
         """
-        """
+
         cam = self.renderer.GetActiveCamera()
         
         if angle == "sagital":
@@ -440,11 +500,23 @@ class Guillotine:
         
         cam.SetViewAngle(30)
         self.renderer.ResetCamera()
+        self.plane_widget.InvokeEvent("InteractionEvent")
+    
+    def set_view_angle(self, angle):
+        """Sets the plane and camera to a standard angle
+        
+        Parameters
+        ----------
+            angle : string ("sagital", "coronal" or "axial")
+        """
+
+        self.set_camera_angle(angle)
         self.set_plane_angle(angle)
 
     def toggle_axes(self):
+        """Toggles the display of the axes
         """
-        """
+
         self.axes.SetXAxisVisibility(not self.axes.GetXAxisVisibility())
         self.axes.SetYAxisVisibility(not self.axes.GetYAxisVisibility())
         self.axes.SetZAxisVisibility(not self.axes.GetZAxisVisibility())
@@ -454,11 +526,52 @@ class Guillotine:
     """
     RENDERING METHODS
     -----------------
+        Guillotine's display and output functions
     """
 
+    def show(self, window_size=(800, 600)):
+        """Displays an interactive window of the current view
+            Once the guillotine as been built and the view optionally changed, 
+            this function shows the result in an interactive view, where a
+            widget allows you to pla with the displayed data. The key actions
+            are described in th _callback function.
+        
+        Parameters
+        ----------
+            window_size : tuple of size 2
+                Width and height of the displayed window
+        """
+
+        self.render_window.SetSize(window_size)
+        self.renderer.Render()
+        self.interactor.Initialize()
+        self.render_window.Render()
+        self.interactor.Start()
+
     def snapshot(self, filename=None, window_size=(800, 600), magnification=1):
-        '''
-        '''
+        """Takes a snapshot of the current view
+            Instead of showing an interactive window, a screen capture is taken
+            from the built guillotine. This is convenient for scripting or
+            when you know exactly which view of the data you need. The
+            magnification can be used to render the scene high quality thanks
+            to a virtual multi-screen rendering.
+
+        Parameters
+        ----------
+            window_size : tuple of size 2
+                Width and height of the displayed window
+            magnification : int
+                screen tilling radius
+                1        2            3
+                +---+    +---+---+    +---+---+---+
+                |   |    |   |   |    |   |   |   |
+                +---+    +---+---+    +---+---+---+
+                         |   |   |    |   |   |   |
+                         +---+---+    +---+---+---+
+                                      |   |   |   |
+                                      +---+---+---+
+        """
+
         number = 0
         if filename is None:
             filename = "guillotine_snapshot_"
@@ -479,12 +592,3 @@ class Guillotine:
         writer.SetInputConnection(renderLarge.GetOutputPort())
         writer.SetFileName(filename)
         writer.Write()
-
-    def show(self, window_size=(800, 600)):
-        """
-        """
-        self.render_window.SetSize(window_size)
-        self.renderer.Render()
-        self.interactor.Initialize()
-        self.render_window.Render()
-        self.interactor.Start()
