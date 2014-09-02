@@ -11,7 +11,87 @@ import utils
 import os
 
 
+
 class Guillotine:
+    KeyboardShortcuts = """
+VTK default interactor keys:
+    j / t : toggle between joystick (position sensitive) and trackball
+            (motion sensitive) styles. In joystick style, motion occurs
+            continuously as long as a mouse button is pressed. In
+            trackball style, motion occurs when the mouse button is
+            pressed and the mouse pointer moves.
+    c / a : toggle between camera and actor modes. In camera mode,
+            mouse events affect the camera position and focal point. In
+            actor mode, mouse events affect the actor that is under the
+            mouse pointer.
+    1 :     rotate the camera around its focal point (if camera mode)
+            or rotate the actor around its origin (if actor mode). The
+            rotation is in the direction defined from the center of the
+            renderer's viewport towards the mouse position. In joystick
+            mode, the magnitude of the rotation is determined by the
+            distance the mouse is from the center of the render window.
+    2 :     pan the camera (if camera mode) or translate the actor (if
+            actor mode). In joystick mode, the direction of pan or
+            translation is from the center of the viewport towards the
+            mouse position. In trackball mode, the direction of motion
+            is the direction the mouse moves. (Note: with 2-button
+            mice, pan is defined as <Shift>-Button 1.)
+    3 :     zoom the camera (if camera mode) or scale the actor (if
+            actor mode). Zoom in/increase scale if the mouse position
+            is in the top half of the viewport; zoom out/decrease scale
+            if the mouse position is in the bottom half. In joystick
+            mode, the amount of zoom is controlled by the distance of
+            the mouse pointer from the horizontal centerline of the
+            window.
+    3 :     toggle the render window into and out of stereo mode. By
+            default, red-blue stereo pairs are created. Some systems
+            support Crystal Eyes LCD stereo glasses; you have to invoke
+            SetStereoTypeToCrystalEyes() on the rendering window.
+    e :     exit the application.
+    f :     fly to the picked point
+    i :     toggle display of the interactor
+    p :     perform a pick operation. The render window interactor has
+            an internal instance of vtkCellPicker that it uses to pick.
+    r :     reset the camera view along the current view direction.
+            Centers the actors and moves the camera so that all actors
+            are visible.
+    s :     modify the representation of all actors so that they are
+            surfaces.
+    u :     invoke the user-defined function. Typically, this keypress
+            will bring up an interactor that you can type commands in.
+            Typing u calls UserCallBack() on the
+            vtkRenderWindowInteractor, which invokes a
+            vtkCommand::UserEvent. In other words, to define a
+            user-defined callback, just add an observer to the
+            vtkCommand::UserEvent on the vtkRenderWindowInteractor
+            object.
+    w :     modify the representation of all actors so that they are
+            wireframe.
+
+Guillotine Keys:
+    x :                 clip plane normal to x axis
+    y :                 clip plane normal to y axis
+    z :                 clip plane normal to z axis
+    r :                 reset the camera to initial standard position
+    Shift-s :           set a sagital view
+    Shift-c :           set a coronal view
+    Shift-a :           set an axial view
+    o :                 take a snapshot of the window and stores the
+                        PNG file into the working directory
+    Delete :            toggle display of the axes
+    Right :             tilt the guillotine to the right
+    Left :              tilt the guillotine to the left
+    Up :                tilt the guillotine up
+    Down :              tilt the guillotine down
+    Prior(Page down) :  decrease the slice index along the normal
+    Next (Page Up) :    increase the slice index along the normal
+    Shift-Right :       roll the camera right
+    Shift-Left :        roll the camera left
+    Shift-Up :          zoom in the camera's view angle
+    Shift-Down :        zoom out the camera's view angle
+    Shift-Prior :       (Page down) fast prior key
+    Shift-Next :        (Page Up) fast n
+"""
     def __init__(self):
         """Data volume slicing utility
             Once instantiated, several volumes can be added to this class to be
@@ -90,86 +170,6 @@ class Guillotine:
                 Object that calls this function
             event : vtkEvent
                 Event that triggered the calling of this function
-
-        VTK default interactor keys
-        ---------------------------
-            j / t : toggle between joystick (position sensitive) and trackball
-                    (motion sensitive) styles. In joystick style, motion occurs
-                    continuously as long as a mouse button is pressed. In
-                    trackball style, motion occurs when the mouse button is
-                    pressed and the mouse pointer moves.
-            c / a : toggle between camera and actor modes. In camera mode,
-                    mouse events affect the camera position and focal point. In
-                    actor mode, mouse events affect the actor that is under the
-                    mouse pointer.
-            1 :     rotate the camera around its focal point (if camera mode)
-                    or rotate the actor around its origin (if actor mode). The
-                    rotation is in the direction defined from the center of the
-                    renderer's viewport towards the mouse position. In joystick
-                    mode, the magnitude of the rotation is determined by the
-                    distance the mouse is from the center of the render window.
-            2 :     pan the camera (if camera mode) or translate the actor (if
-                    actor mode). In joystick mode, the direction of pan or
-                    translation is from the center of the viewport towards the
-                    mouse position. In trackball mode, the direction of motion
-                    is the direction the mouse moves. (Note: with 2-button
-                    mice, pan is defined as <Shift>-Button 1.)
-            3 :     zoom the camera (if camera mode) or scale the actor (if
-                    actor mode). Zoom in/increase scale if the mouse position
-                    is in the top half of the viewport; zoom out/decrease scale
-                    if the mouse position is in the bottom half. In joystick
-                    mode, the amount of zoom is controlled by the distance of
-                    the mouse pointer from the horizontal centerline of the
-                    window.
-            3 :     toggle the render window into and out of stereo mode. By
-                    default, red-blue stereo pairs are created. Some systems
-                    support Crystal Eyes LCD stereo glasses; you have to invoke
-                    SetStereoTypeToCrystalEyes() on the rendering window.
-            e :     exit the application.
-            f :     fly to the picked point
-            i :     toggle display of the interactor
-            p :     perform a pick operation. The render window interactor has
-                    an internal instance of vtkCellPicker that it uses to pick.
-            r :     reset the camera view along the current view direction.
-                    Centers the actors and moves the camera so that all actors
-                    are visible.
-            s :     modify the representation of all actors so that they are
-                    surfaces.
-            u :     invoke the user-defined function. Typically, this keypress
-                    will bring up an interactor that you can type commands in.
-                    Typing u calls UserCallBack() on the
-                    vtkRenderWindowInteractor, which invokes a
-                    vtkCommand::UserEvent. In other words, to define a
-                    user-defined callback, just add an observer to the
-                    vtkCommand::UserEvent on the vtkRenderWindowInteractor
-                    object.
-            w :     modify the representation of all actors so that they are
-                    wireframe.
-
-        Guillotine Keys
-        -----------
-            x :                 clip plane normal to x axis
-            y :                 clip plane normal to y axis
-            z :                 clip plane normal to z axis
-            r :                 reset the camera to initial standard position
-            Shift-s :           set a sagital view
-            Shift-c :           set a coronal view
-            Shift-a :           set an axial view
-            o :                 take a snapshot of the window and stores the
-                                PNG file into the working directory
-            Delete :            toggle display of the axes
-            Right :             tilt the guillotine to the right
-            Left :              tilt the guillotine to the left
-            Up :                tilt the guillotine up
-            Down :              tilt the guillotine down
-            Prior(Page down) :  decrease the slice index along the normal
-            Next (Page Up) :    increase the slice index along the normal
-            Shift-Right :       roll the camera right
-            Shift-Left :        roll the camera left
-            Shift-Up :          zoom in the camera's view angle
-            Shift-Down :        zoom out the camera's view angle
-            Shift-Prior :       (Page down) fast prior key
-            Shift-Next :        (Page Up) fast n
         """
 
         if event == "InteractionEvent":
@@ -547,7 +547,7 @@ class Guillotine:
         self.render_window.Render()
         self.interactor.Start()
 
-    def snapshot(self, filename=None, render_size=(1024, 768)):
+    def snapshot(self, filename=None, render_size=None):
         """Takes a snapshot of the current view
             Instead of showing an interactive window, a screen capture is taken
             from the built guillotine. This is convenient for scripting or
@@ -574,12 +574,15 @@ class Guillotine:
 
         # Adjust the magnification and render size to optimize the rendering
         magnification = 1
-        new_render_size = render_size
-        while new_render_size[0] > 1000 or new_render_size[1] > 1000:
-            magnification += 1
-            new_render_size = (render_size[0] / magnification,
-                               render_size[1] / magnification)
-        self.render_window.SetSize(new_render_size)
+        if render_size is None:
+            new_render_size = self.render_window.GetSize()
+        else:
+            new_render_size = render_size
+            while new_render_size[0] > 1000 or new_render_size[1] > 1000:
+                magnification += 1
+                new_render_size = (render_size[0] / magnification,
+                                   render_size[1] / magnification)
+            self.render_window.SetSize(new_render_size)
 
         large_renderer = vtk.vtkRenderLargeImage()
         large_renderer.SetInput(self.renderer)

@@ -3,16 +3,17 @@
 
 #TODO : Implement the transformation functions
 
-DESCRIPTION = """
-    View and explore volume data and other sources through the Guillotine.
-    """
-
 import dipy.viz.guillotine as guillotine
 import dipy.viz.fvtk as fvtk
 import dipy.viz.fvtk_actors as fvtk_actors
 import nibabel as nib
 import argparse
 
+DESCRIPTION = """
+    View and explore volume data and other sources through the Guillotine.
+    """
+
+EPILOG = guillotine.Guillotine.KeyboardShortcuts
 
 def angle(arg):
     if arg == "sagital" or arg == "coronal" or arg == "axial":
@@ -44,7 +45,7 @@ def vectorf3(arg):
 
 
 def buildArgsParser():
-    p = argparse.ArgumentParser(description=DESCRIPTION)
+    p = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=argparse.RawTextHelpFormatter)
 
     p.add_argument('input',
                    action='store',
