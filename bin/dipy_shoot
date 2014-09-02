@@ -14,12 +14,27 @@ import nibabel as nib
 import argparse
 
 
-def window_size(s):
+def angle(arg):
+    if arg == "sagital" or arg == "coronal" or arg == "axial":
+        return arg
+    else:
+        raise argparse.ArgumentTypeError("Error : Argument must be either 'sagital', 'coronal' or 'axial' ")
+
+
+def vectorf2(arg):
     try:
-        width, height = map(int, s.split('x'))
-        return (width, height)
+        v1, v2 = map(float, arg.split(','))
+        return (v1, v2)
     except:
-        raise argparse.ArgumentTypeError("Window size must be WidthxHeight")
+        raise argparse.ArgumentTypeError("Error : Argument must be 'v1,v2'")
+
+
+def vectorf3(arg):
+    try:
+        v1, v2, v3 = map(float, arg.split(','))
+        return (v1, v2, v3)
+    except:
+        raise argparse.ArgumentTypeError("Error : Argument must be 'v1,v2,v3'")
 
 
 def buildArgsParser():
@@ -28,31 +43,97 @@ def buildArgsParser():
     p.add_argument('input',
                    action='store',
                    type=str,
-                   help='File paths of data volumes.',
+                   help="File paths of data volumes.",
                    nargs='*')
     p.add_argument('-strl',
                    action='store',
                    type=str,
-                   help='File paths of streamlines.',
+                   default=(),
+                   help="File paths of streamlines.",
                    nargs='*')
-    p.add_argument('-a',
+    p.add_argument('-axes',
                    action='store_true',
-                   help='Activate axes around volume.')
-    p.add_argument('-ca',
+                   help="Activate axes around volume.")
+    p.add_argument('-origin',
                    action='store_true',
-                   help='Adds colored axes at origin.')
-    p.add_argument('-s',
-                   action='store_true',
-                   help='Takes a screen capture of the current built guillotine.')
-    p.add_argument('-size',
-                   help="Render size (WxH).",
-                   default=None,
-                   type=window_size)
+                   help="Adds colored axes at origin.")
     p.add_argument('-o',
+                   action='store_true',
+                   help="Takes a screen capture of the current built guillotine.")
+    p.add_argument('-size',
+                   help="Render size ('w,h').",
+                   default=None,
+                   type=vectorf2)
+    p.add_argument('-f',
                    action='store',
                    type=str,
                    default=None,
-                   help='File path of the output screen capture.')
+                   help="File path of the output screen capture.")
+    p.add_argument('-va',
+                   action='store',
+                   type=angle,
+                   default="axial",
+                   help="Set view angle of the data. (sagital, coronal or axial)")
+    p.add_argument('-sa',
+                   action='store',
+                   type=angle,
+                   default="axial",
+                   help="Set slice angle of the data. (sagital, coronal or axial)")
+    p.add_argument('-sp',
+                   action='store',
+                   type=vectorf3,
+                   default=None,
+                   help="Set slice position of the data. ('x,y,z')")
+    p.add_argument('-so',
+                   action='store',
+                   type=vectorf3,
+                   default=None,
+                   help="Set slice position of the data. ('n1,n2,n3')")
+    p.add_argument('-ca',
+                   action='store',
+                   type=angle,
+                   default="axial",
+                   help="Set camera angle. (sagital, coronal or axial)")
+    p.add_argument('-caz',
+                   action='store',
+                   type=float,
+                   default="0.0",
+                   help="Set camera azimuth in degrees")
+    p.add_argument('-ce',
+                   action='store',
+                   type=float,
+                   default="0.0",
+                   help="Set camera elevation in degrees")
+    p.add_argument('-cr',
+                   action='store',
+                   type=float,
+                   default="0.0",
+                   help="Set camera roll in degrees")
+    p.add_argument('-cz',
+                   action='store',
+                   type=float,
+                   default="0.0",
+                   help="Set camera zoom factor")
+    p.add_argument('-mcaz',
+                   action='store',
+                   type=float,
+                   default="0.0",
+                   help="Move camera azimuth in degrees")
+    p.add_argument('-mce',
+                   action='store',
+                   type=float,
+                   default="0.0",
+                   help="Move camera elevation in degrees")
+    p.add_argument('-mcr',
+                   action='store',
+                   type=float,
+                   default="0.0",
+                   help="Move camera roll in degrees")
+    p.add_argument('-mcz',
+                   action='store',
+                   type=float,
+                   default="0.0",
+                   help="Move camera zoom factor")
 
     return p
 
@@ -93,40 +174,40 @@ def main():
         g.add_actor(streamlines_actor)
 
     # Display colored axes at the origin
-    if args.ca:
+    if args.origin:
         actor = fvtk.axes((20, 20, 20))
         g.add_actor(actor)
-
-    # Display axes around data
-    if args.a:
-        g.toggle_axes()
-
-    # Set view angle of the data
-#     g.set_view_angle(angle)
-
-    # Set plane angle
-#     g.set_plane_angle(angle)
-
-    # Set plane orientation
-#     g.set_plane(origin, normal)
-
-    # Set camera angle
-#     g.set_camera_angle(angle)
-
-    # Set camera orientation
-#     g.set_camera(azimuth, elevation, roll, zoom)
-
-    # Move camera from current orientation
-#     g.move_camera(azimuth, elevation, roll, zoom)
 
     # Build the guillotine
     g.build()
 
+    # Display axes around data
+    if args.axes:
+        g.toggle_axes()
+
+    # Set view angle of the data
+    g.set_view_angle(args.va)
+
+    # Set slice angle
+    g.set_plane_angle(args.sa)
+
+    # Set plane orientation
+    g.set_plane(args.sp, args.so)
+
+    # Set camera angle
+    g.set_camera_angle(args.ca)
+
+    # Set camera orientation
+    g.set_camera(args.caz, args.ce, args.cr, args.cz)
+
+    # Move camera from current orientation
+    g.move_camera(args.mcaz, args.mce, args.mcr, args.mcz)
+
     # Snapshot or show the guillotine
-    if args.s:
+    if args.o:
         if args.size is None:
             args.size = (10000, 10000)
-        g.snapshot(args.o, args.size)
+        g.snapshot(args.f, args.size)
     else:
         g.show()
 
