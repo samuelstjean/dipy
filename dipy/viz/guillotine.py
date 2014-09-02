@@ -1,9 +1,9 @@
-#TODO
-#    Command line
-#    Tutorial
-#    Support VTK6
-#    Find a place to put utils.py
-#    Add support for LUT input
+#    TODO:
+#         Tutorial
+#         Add display of plane and camera information
+#         Support VTK6
+#         Find a place to put utils.py
+#         Add support for LUT input
 
 import vtk
 import utils
@@ -36,32 +36,31 @@ class Guillotine:
             show :               Displays an interactive window of the current
                                  view
             snapshot :           Takes a snapshot of the current view
-    
+
         Example
         -------
         # First, instantiate the class
         g = Guillotine()
-        
+
         # Use input methods to add data volume(s) and actor(s) if desired
         d = file.data
         d_affine = file.affine
         g.add_data_volume(d, affine = d_affine)
-        
+
         a = vtk.vtkActor()
         g.add_actor(a)
-        
+
         # Use the build() method to create the guillotine
         g.build()
-        
+
         # You can now place the camera, set the cutting plane or display the
         # axes using the display methods
         g.set_view_angle("sagital")
-        
+
         # Display or create a snapshot from the result
-        g.show() 
-        
+        g.show()
         """
-        
+
         self.nb_data_volumes = 0
         self.plane = vtk.vtkPlane()
         self.blender = vtk.vtkImageBlend()
@@ -69,18 +68,19 @@ class Guillotine:
         self.axes = vtk.vtkCubeAxesActor()
 
         self.renderer = vtk.vtkRenderer()
-        self.renderer.SetBackground(0.18, 0.18, 0.18)
-        
+        self.renderer.SetBackground(0, 0, 0)
+
         self.render_window = vtk.vtkRenderWindow()
+        self.render_window.SetSize(800, 600)
         self.render_window.AddRenderer(self.renderer)
-        
+
         self.interactor = vtk.vtkRenderWindowInteractor()
         self.interactor.SetRenderWindow(self.render_window)
         self.interactor.AddObserver("KeyPressEvent", self._callback)
 
     def _callback(self, object, event):
         """Callback function for interaction events
-            This function is called every time a key is hit or interaction is 
+            This function is called every time a key is hit or interaction is
             done.
 
         Parameters
@@ -154,7 +154,7 @@ class Guillotine:
             Shift-s :           set a sagital view
             Shift-c :           set a coronal view
             Shift-a :           set an axial view
-            o :                 take a snapshot of the window and stores the 
+            o :                 take a snapshot of the window and stores the
                                 PNG file into the working directory
             Delete :            toggle display of the axes
             Right :             tilt the guillotine to the right
@@ -192,30 +192,30 @@ class Guillotine:
                 self.set_view_angle("coronal")
             elif key == "A":
                 self.set_view_angle("axial")
-            elif key =="o":
+            elif key == "o":
                 self.snapshot()
             elif key == "Delete":
                 self.toggle_axes()
             elif key == "Right":
                 if shift_pressed:
-                    self.move_camera(roll = -15)
+                    self.move_camera(roll=-15)
                 else:
-                    self.move_camera(azimuth = -15)
+                    self.move_camera(azimuth=-15)
             elif key == "Left":
                 if shift_pressed:
-                    self.move_camera(roll = 15)
+                    self.move_camera(roll=15)
                 else:
-                    self.move_camera(azimuth = 15)
+                    self.move_camera(azimuth=15)
             elif key == "Down":
                 if shift_pressed:
-                    self.move_camera(zoom = 0.9)
+                    self.move_camera(zoom=0.9)
                 else:
-                    self.move_camera(elevation = 15)
+                    self.move_camera(elevation=15)
             elif key == "Up":
                 if shift_pressed:
-                    self.move_camera(zoom = 1.1)
+                    self.move_camera(zoom=1.1)
                 else:
-                    self.move_camera(elevation = -15)
+                    self.move_camera(elevation=-15)
             elif key == "Prior" or key == "Next":
                 if key == "Prior":
                     factor = 1.0
@@ -307,7 +307,7 @@ class Guillotine:
         self.blender.SetOpacity(self.nb_data_volumes, opacity)
         self.blender.UpdateWholeExtent()
         self.nb_data_volumes += 1
-    
+
     def add_actor(self, actor):
         """Adds actor to the renderer (optional)
             This function is useful to add any extra actor needed in the
@@ -320,7 +320,7 @@ class Guillotine:
         """
 
         self.renderer.AddActor(actor)
-    
+
     def build(self):
         """Sets the guillotine ready for showing or snapshot.
             This function must be called after add_data_volume as been used at
@@ -393,7 +393,7 @@ class Guillotine:
 
     def set_plane(self, origin=None, normal=None):
         """Sets the plane origin and normal
-        
+
         Parameters
         ----------
             origin : tuple of size 3
@@ -406,12 +406,12 @@ class Guillotine:
             self.plane_widget.SetOrigin(origin)
         if normal is not None:
             self.plane_widget.SetNormal(normal)
-            
+
         self.plane_widget.InvokeEvent("InteractionEvent")
 
     def set_plane_angle(self, angle):
         """Sets the plane to a standard angle
-        
+
         Parameters
         ----------
             angle : string ("sagital", "coronal" or "axial")
@@ -428,7 +428,7 @@ class Guillotine:
             return
 
         self.plane_widget.InvokeEvent("InteractionEvent")
-    
+
     def move_camera(self, azimuth=0, elevation=0, roll=0, zoom=0):
         """Move the camera from its current position around the object
 
@@ -450,12 +450,12 @@ class Guillotine:
         cam.Elevation(elevation)
         cam.Roll(roll)
         cam.Zoom(zoom)
-        
+
         self.interactor.Render()
 
     def set_camera(self, azimuth=0, elevation=0, roll=0, zoom=0):
         """Sets the camera's position around the object
-        
+
         Parameters
         ----------
             azimuth : float
@@ -470,18 +470,18 @@ class Guillotine:
         """
 
         self.set_camera_angle("axial")
-        move_camera(azimuth, elevation, roll, zoom)
-    
+        self.move_camera(azimuth, elevation, roll, zoom)
+
     def set_camera_angle(self, angle):
         """Sets the camera to a standard angle
-        
+
         Parameters
         ----------
             angle : string ("sagital", "coronal" or "axial")
         """
 
         cam = self.renderer.GetActiveCamera()
-        
+
         if angle == "sagital":
             cam.SetPosition(1, 0, 0)
             cam.SetFocalPoint(0, 0, 0)
@@ -497,14 +497,14 @@ class Guillotine:
         else:
             print "Not a valid angle"
             return
-        
+
         cam.SetViewAngle(30)
         self.renderer.ResetCamera()
         self.plane_widget.InvokeEvent("InteractionEvent")
-    
+
     def set_view_angle(self, angle):
         """Sets the plane and camera to a standard angle
-        
+
         Parameters
         ----------
             angle : string ("sagital", "coronal" or "axial")
@@ -520,7 +520,7 @@ class Guillotine:
         self.axes.SetXAxisVisibility(not self.axes.GetXAxisVisibility())
         self.axes.SetYAxisVisibility(not self.axes.GetYAxisVisibility())
         self.axes.SetZAxisVisibility(not self.axes.GetZAxisVisibility())
-        
+
         self.interactor.Render()
 
     """
@@ -529,26 +529,20 @@ class Guillotine:
         Guillotine's display and output functions
     """
 
-    def show(self, window_size=(800, 600)):
+    def show(self):
         """Displays an interactive window of the current view
-            Once the guillotine as been built and the view optionally changed, 
+            Once the guillotine as been built and the view optionally changed,
             this function shows the result in an interactive view, where a
             widget allows you to pla with the displayed data. The key actions
             are described in th _callback function.
-        
-        Parameters
-        ----------
-            window_size : tuple of size 2
-                Width and height of the displayed window
         """
 
-        self.render_window.SetSize(window_size)
         self.renderer.Render()
         self.interactor.Initialize()
         self.render_window.Render()
         self.interactor.Start()
 
-    def snapshot(self, filename=None, window_size=(800, 600), magnification=1):
+    def snapshot(self, filename=None, render_size=(1000, 1000)):
         """Takes a snapshot of the current view
             Instead of showing an interactive window, a screen capture is taken
             from the built guillotine. This is convenient for scripting or
@@ -558,18 +552,10 @@ class Guillotine:
 
         Parameters
         ----------
-            window_size : tuple of size 2
-                Width and height of the displayed window
-            magnification : int
-                screen tilling radius
-                1        2            3
-                +---+    +---+---+    +---+---+---+
-                |   |    |   |   |    |   |   |   |
-                +---+    +---+---+    +---+---+---+
-                         |   |   |    |   |   |   |
-                         +---+---+    +---+---+---+
-                                      |   |   |   |
-                                      +---+---+---+
+            filename : string
+                Output filename ending with ".png" extension
+            render_size : tuple of size 2
+                Width and height of the captured image
         """
 
         number = 0
@@ -581,14 +567,21 @@ class Guillotine:
         elif os.path.isfile(filename):
             print "Warning : Overwriting existing file."
 
-        self.render_window.SetSize(window_size)
+        # Adjust the magnification and render size to optimize the rendering
+        magnification = 1
+        new_render_size = render_size
+        while new_render_size[0] > 1000 or new_render_size[1] > 1000:
+            magnification += 1
+            new_render_size = (render_size[0] / magnification,
+                               render_size[1] / magnification)
+        self.render_window.SetSize(new_render_size)
 
-        renderLarge = vtk.vtkRenderLargeImage()
-        renderLarge.SetInput(self.renderer)
-        renderLarge.SetMagnification(magnification)
-        renderLarge.Update()
+        large_renderer = vtk.vtkRenderLargeImage()
+        large_renderer.SetInput(self.renderer)
+        large_renderer.SetMagnification(magnification)
+        large_renderer.Update()
 
         writer = vtk.vtkPNGWriter()
-        writer.SetInputConnection(renderLarge.GetOutputPort())
+        writer.SetInput(large_renderer.GetOutput())
         writer.SetFileName(filename)
         writer.Write()
