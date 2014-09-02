@@ -1,5 +1,6 @@
 #    TODO:
 #         Tutorial
+#         Have a memorized current camera transformation
 #         Add display of plane and camera information
 #         Support VTK6
 #         Find a place to put utils.py
@@ -71,7 +72,7 @@ class Guillotine:
         self.renderer.SetBackground(0, 0, 0)
 
         self.render_window = vtk.vtkRenderWindow()
-        self.render_window.SetSize(800, 600)
+        self.render_window.SetSize(1024, 768)
         self.render_window.AddRenderer(self.renderer)
 
         self.interactor = vtk.vtkRenderWindowInteractor()
@@ -306,6 +307,14 @@ class Guillotine:
         self.blender.SetInput(self.nb_data_volumes, image_reslice.GetOutput())
         self.blender.SetOpacity(self.nb_data_volumes, opacity)
         self.blender.UpdateWholeExtent()
+        extent = self.blender.GetOutput().GetExtent()
+        ori = self.blender.GetOutput().GetOrigin()
+        self.bbox = ((extent[0] + ori[0]),
+                (extent[1] + ori[0]),
+                (extent[2] + ori[1]),
+                (extent[3] + ori[1]),
+                (extent[4] + ori[2]),
+                (extent[5] + ori[2]))
         self.nb_data_volumes += 1
 
     def add_actor(self, actor):
@@ -332,19 +341,10 @@ class Guillotine:
         assert(
             self.nb_data_volumes > 0), \
             "No data volume, use function add_data_volume."
-        data_volume = self.blender.GetOutput()
-        extent = data_volume.GetExtent()
-        ori = data_volume.GetOrigin()
-        bbox = ((extent[0] + ori[0]),
-                (extent[1] + ori[0]),
-                (extent[2] + ori[1]),
-                (extent[3] + ori[1]),
-                (extent[4] + ori[2]),
-                (extent[5] + ori[2]))
 
         # Set cutter filter
         cutter = vtk.vtkCutter()
-        cutter.SetInput(data_volume)
+        cutter.SetInput(self.blender.GetOutput())
         cutter.SetCutFunction(self.plane)
 
         # Set the cutter mappers
@@ -357,7 +357,7 @@ class Guillotine:
         self.add_actor(cutter_actor)
 
         # Set plane widget
-        self.plane_widget.SetInput(data_volume)
+        self.plane_widget.SetInput(self.blender.GetOutput())
         self.plane_widget.SetInteractor(self.interactor)
         self.plane_widget.AddObserver("InteractionEvent", self._callback)
         self.plane_widget.SetDrawPlane(0)
@@ -370,12 +370,12 @@ class Guillotine:
         self.plane_widget.SetNormal(0, 0, 1)
 
         # Set axes
-        self.axes.SetBounds(bbox[0],
-                            bbox[1],
-                            bbox[2],
-                            bbox[3],
-                            bbox[4],
-                            bbox[5])
+        self.axes.SetBounds(self.bbox[0],
+                            self.bbox[1],
+                            self.bbox[2],
+                            self.bbox[3],
+                            self.bbox[4],
+                            self.bbox[5])
         self.axes.SetTickLocationToBoth()
         self.axes.SetFlyModeToOuterEdges()
         self.axes.SetCamera(self.renderer.GetActiveCamera())
@@ -403,6 +403,11 @@ class Guillotine:
         """
 
         if origin is not None:
+            # Constraint the origin inside the data limits
+            eps = 0.0001
+            origin = (min(max(origin[0], self.bbox[0] + eps), self.bbox[1] - eps),
+                      min(max(origin[1], self.bbox[2] + eps), self.bbox[3] - eps),
+                      min(max(origin[2], self.bbox[4] + eps), self.bbox[5] - eps))
             self.plane_widget.SetOrigin(origin)
         if normal is not None:
             self.plane_widget.SetNormal(normal)
@@ -542,7 +547,7 @@ class Guillotine:
         self.render_window.Render()
         self.interactor.Start()
 
-    def snapshot(self, filename=None, render_size=(1000, 1000)):
+    def snapshot(self, filename=None, render_size=(1024, 768)):
         """Takes a snapshot of the current view
             Instead of showing an interactive window, a screen capture is taken
             from the built guillotine. This is convenient for scripting or

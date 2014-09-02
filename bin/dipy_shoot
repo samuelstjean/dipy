@@ -4,7 +4,7 @@
 #TODO : Implement the transformation functions
 
 DESCRIPTION = """
-    View and explore volume data and other sources through a guillotine
+    View and explore volume data and other sources through the Guillotine.
     """
 
 import dipy.viz.guillotine as guillotine
@@ -23,18 +23,24 @@ def angle(arg):
 
 def vectorf2(arg):
     try:
-        v1, v2 = map(float, arg.split(','))
-        return (v1, v2)
+        arg = arg.replace('(', '')
+        arg = arg.replace(')', '')
+        arg = arg.split(',')
+        arg = (float(arg[0]), float(arg[1]))
+        return arg
     except:
-        raise argparse.ArgumentTypeError("Error : Argument must be 'v1,v2'")
+        raise argparse.ArgumentTypeError("Error : Argument must be '(v1,v2)'")
 
 
 def vectorf3(arg):
     try:
-        v1, v2, v3 = map(float, arg.split(','))
-        return (v1, v2, v3)
+        arg = arg.replace('(', '')
+        arg = arg.replace(')', '')
+        arg = arg.split(',')
+        arg = (float(arg[0]), float(arg[1]), float(arg[2]))
+        return arg
     except:
-        raise argparse.ArgumentTypeError("Error : Argument must be 'v1,v2,v3'")
+        raise argparse.ArgumentTypeError("Error : Argument must be '(v1,v2,v3)'")
 
 
 def buildArgsParser():
@@ -61,8 +67,8 @@ def buildArgsParser():
                    action='store_true',
                    help="Takes a screen capture of the current built guillotine.")
     p.add_argument('-size',
-                   help="Render size ('w,h').",
-                   default=None,
+                   help="Render size '(w,h)'.",
+                   default=(1024, 768),
                    type=vectorf2)
     p.add_argument('-f',
                    action='store',
@@ -72,68 +78,68 @@ def buildArgsParser():
     p.add_argument('-va',
                    action='store',
                    type=angle,
-                   default="axial",
-                   help="Set view angle of the data. (sagital, coronal or axial)")
+                   default=None,
+                   help="Set view angle of the data (sagital, coronal or axial).")
     p.add_argument('-sa',
                    action='store',
                    type=angle,
-                   default="axial",
-                   help="Set slice angle of the data. (sagital, coronal or axial)")
+                   default=None,
+                   help="Set slice angle of the data (sagital, coronal or axial).")
     p.add_argument('-sp',
                    action='store',
                    type=vectorf3,
                    default=None,
-                   help="Set slice position of the data. ('x,y,z')")
+                   help="Set slice origin position of the data '(x,y,z).'")
     p.add_argument('-so',
                    action='store',
                    type=vectorf3,
                    default=None,
-                   help="Set slice position of the data. ('n1,n2,n3')")
+                   help="Set slice normal orientation of the data '(n1,n2,n3)'.")
     p.add_argument('-ca',
                    action='store',
                    type=angle,
-                   default="axial",
-                   help="Set camera angle. (sagital, coronal or axial)")
+                   default=None,
+                   help="Set camera angle (sagital, coronal or axial).")
     p.add_argument('-caz',
                    action='store',
                    type=float,
                    default="0.0",
-                   help="Set camera azimuth in degrees")
+                   help="Set camera azimuth in [-180, 180] degrees.")
     p.add_argument('-ce',
                    action='store',
                    type=float,
                    default="0.0",
-                   help="Set camera elevation in degrees")
+                   help="Set camera elevation in [-90, 90] degrees.")
     p.add_argument('-cr',
                    action='store',
                    type=float,
                    default="0.0",
-                   help="Set camera roll in degrees")
+                   help="Set camera roll in [-180, 180] degrees.")
     p.add_argument('-cz',
                    action='store',
                    type=float,
                    default="0.0",
-                   help="Set camera zoom factor")
+                   help="Set camera zoom factor in ]0.0, infinite[.")
     p.add_argument('-mcaz',
                    action='store',
                    type=float,
                    default="0.0",
-                   help="Move camera azimuth in degrees")
+                   help="Move camera azimuth in [-180, 180] degrees.")
     p.add_argument('-mce',
                    action='store',
                    type=float,
                    default="0.0",
-                   help="Move camera elevation in degrees")
+                   help="Move camera elevation [-90, 90] in degrees.")
     p.add_argument('-mcr',
                    action='store',
                    type=float,
                    default="0.0",
-                   help="Move camera roll in degrees")
+                   help="Move camera roll in [-180, 180] degrees.")
     p.add_argument('-mcz',
                    action='store',
                    type=float,
                    default="0.0",
-                   help="Move camera zoom factor")
+                   help="Move camera zoom factor in ]0.0, infinite[.")
 
     return p
 
@@ -147,9 +153,8 @@ def load_data_volume(filename):
 
 
 def load_streamlines(filename):
-    data = nib.trackvis.read(filename, points_space='rasmm')
-    nb_streamlines = len(data[0])
-    streamlines = [data[0][i][0] for i in range(nb_streamlines)]
+    streams, hdr = nib.trackvis.read(filename, points_space='rasmm')
+    streamlines = [s[0] for s in streams]
 
     return streamlines
 
@@ -162,6 +167,10 @@ def main():
     # Initialize guillotine
     g = guillotine.Guillotine()
 
+    if len(args.input) == 0:
+        parser.print_help()
+        return
+    
     # Load data volumes
     for filename in args.input:
         data, affine = load_data_volume(filename)
@@ -185,28 +194,29 @@ def main():
     if args.axes:
         g.toggle_axes()
 
-    # Set view angle of the data
-    g.set_view_angle(args.va)
-
-    # Set slice angle
-    g.set_plane_angle(args.sa)
-
-    # Set plane orientation
-    g.set_plane(args.sp, args.so)
-
-    # Set camera angle
-    g.set_camera_angle(args.ca)
-
-    # Set camera orientation
-    g.set_camera(args.caz, args.ce, args.cr, args.cz)
+    if args.va is None:
+        if args.sa is None:
+            # Set plane orientation
+            g.set_plane(args.sp, args.so)
+        else:
+            # Set slice angle
+            g.set_plane_angle(args.sa)
+        
+        if args.ca is None:
+            # Set camera orientation
+            g.set_camera(args.caz, args.ce, args.cr, args.cz)
+        else:
+            # Set camera angle
+            g.set_camera_angle(args.ca)
+    else:
+        # Set view angle of the data
+        g.set_view_angle(args.va)
 
     # Move camera from current orientation
     g.move_camera(args.mcaz, args.mce, args.mcr, args.mcz)
 
     # Snapshot or show the guillotine
     if args.o:
-        if args.size is None:
-            args.size = (10000, 10000)
         g.snapshot(args.f, args.size)
     else:
         g.show()
