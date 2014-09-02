@@ -1,0 +1,134 @@
+#! /usr/bin/env python
+# from _heapq import __about__
+
+#TODO : Implement the transformation functions
+
+DESCRIPTION = """
+    View and explore volume data and other sources through a guillotine
+    """
+
+import dipy.viz.guillotine as guillotine
+import dipy.viz.fvtk as fvtk
+import dipy.viz.fvtk_actors as fvtk_actors
+import nibabel as nib
+import argparse
+
+
+def window_size(s):
+    try:
+        width, height = map(int, s.split('x'))
+        return (width, height)
+    except:
+        raise argparse.ArgumentTypeError("Window size must be WidthxHeight")
+
+
+def buildArgsParser():
+    p = argparse.ArgumentParser(description=DESCRIPTION)
+
+    p.add_argument('input',
+                   action='store',
+                   type=str,
+                   help='File paths of data volumes.',
+                   nargs='*')
+    p.add_argument('-strl',
+                   action='store',
+                   type=str,
+                   help='File paths of streamlines.',
+                   nargs='*')
+    p.add_argument('-a',
+                   action='store_true',
+                   help='Activate axes around volume.')
+    p.add_argument('-ca',
+                   action='store_true',
+                   help='Adds colored axes at origin.')
+    p.add_argument('-s',
+                   action='store_true',
+                   help='Takes a screen capture of the current built guillotine.')
+    p.add_argument('-size',
+                   help="Render size (WxH).",
+                   default=None,
+                   type=window_size)
+    p.add_argument('-o',
+                   action='store',
+                   type=str,
+                   default=None,
+                   help='File path of the output screen capture.')
+
+    return p
+
+
+def load_data_volume(filename):
+    data = nib.load(filename)
+    volume_data = data.get_data()
+    affine = data.get_affine()
+
+    return volume_data, affine
+
+
+def load_streamlines(filename):
+    data = nib.trackvis.read(filename, points_space='rasmm')
+    nb_streamlines = len(data[0])
+    streamlines = [data[0][i][0] for i in range(nb_streamlines)]
+
+    return streamlines
+
+
+def main():
+    # Parse arguments
+    parser = buildArgsParser()
+    args = parser.parse_args()
+
+    # Initialize guillotine
+    g = guillotine.Guillotine()
+
+    # Load data volumes
+    for filename in args.input:
+        data, affine = load_data_volume(filename)
+        g.add_data_volume(data, 0.5, affine)
+
+    # Load streamlines
+    for filename in args.strl:
+        streamlines = load_streamlines(filename)
+        streamlines_actor = fvtk_actors.streamtube(streamlines, linewidth=0.3)
+        g.add_actor(streamlines_actor)
+
+    # Display colored axes at the origin
+    if args.ca:
+        actor = fvtk.axes((20, 20, 20))
+        g.add_actor(actor)
+
+    # Display axes around data
+    if args.a:
+        g.toggle_axes()
+
+    # Set view angle of the data
+#     g.set_view_angle(angle)
+
+    # Set plane angle
+#     g.set_plane_angle(angle)
+
+    # Set plane orientation
+#     g.set_plane(origin, normal)
+
+    # Set camera angle
+#     g.set_camera_angle(angle)
+
+    # Set camera orientation
+#     g.set_camera(azimuth, elevation, roll, zoom)
+
+    # Move camera from current orientation
+#     g.move_camera(azimuth, elevation, roll, zoom)
+
+    # Build the guillotine
+    g.build()
+
+    # Snapshot or show the guillotine
+    if args.s:
+        if args.size is None:
+            args.size = (10000, 10000)
+        g.snapshot(args.o, args.size)
+    else:
+        g.show()
+
+if __name__ == "__main__":
+    main()
