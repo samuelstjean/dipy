@@ -107,6 +107,8 @@ def _fixed_point_k(eta, m, sigma, N):
 
 def _marcumq(a, b, M, eps=1e-10):
 
+    #a = np.array(a, dtype=np.float64)
+    #b = np.array(b, dtype=np.float64)
     #print(len(a), len(b), "a et b")
     if np.all(np.abs(b) < eps):
     #    print("cas 1")
@@ -116,7 +118,7 @@ def _marcumq(a, b, M, eps=1e-10):
         #k = np.arange(M)
         #return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
     #    print("cas 2")
-        temp = 0
+        temp = 0.
         for k in range(M):
             temp += b**(2*k) / (2**k * factorial(k))
 

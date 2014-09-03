@@ -84,15 +84,15 @@ def main():
     deb = time()
 
 
-    m_hat = np.zeros_like(data, dtype=np.float64)
-    for idx in range(data.shape[-1]):
-        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
+    #m_hat = np.zeros_like(data, dtype=np.float64)
+    #for idx in range(data.shape[-1]):
+    #    m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
 
 
     for idx in range(data.shape[-2]):
         print("Now processing slice", idx+1, "out of", data.shape[-2])
 
-        sigma[idx], mask_noise[..., idx] = piesno(m_hat[..., idx, :],  N)
+        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
 
     print(sigma)
     print(np.percentile(sigma, 10.),  np.percentile(sigma, 90.))
@@ -105,22 +105,22 @@ def main():
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
 
     m_hat = np.zeros_like(data, dtype=np.float64)
-    for idx in range(data.shape[-1]):
-        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
+    #for idx in range(data.shape[-1]):
+    #    m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
 
     ###m_hat = nlmeans(data, sigma_mode, rician=False, block_radius=3)
     #m_hat = data
 
 
 
-    #m_hat = nib.load('../dwis.nii.gz').get_data()
+    m_hat = nib.load('../dwis.nii.gz').get_data()
 ##    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
 
 
 
-    eta = fixed_point_finder(m_hat, sigma_mode, N)
-
+    #eta = fixed_point_finder(m_hat, sigma_mode, N)
+    eta=m_hat
     print(data.shape, m_hat.shape, eta.shape)
     nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta.nii.gz')
 

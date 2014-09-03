@@ -39,8 +39,8 @@ def test_fixed_point_finder():
 
 def test_chi_to_gauss():
     # Values taken from hispeed.DistributionalMapping.nonCentralChiToGaussian
-    assert_almost_equal(chi_to_gauss(np.array([470, 700, 700]), np.array([600, 600, 100]), 80, 12), [331.2511087335721, 586.5304199340127, -156.30371246675935])
-    assert_almost_equal(chi_to_gauss(np.array([700, 0, 470]), np.array([600, 600, 600]), 80, 1), [695.0548001366581, 321.53948765230064, 463.965319619292])
+    assert_almost_equal(chi_to_gauss(np.array([470, 700]), np.array([600, 600]), 80, 12), [331.2511087335721, 586.5304199340127])
+    assert_almost_equal(chi_to_gauss(np.array([700, 470]), np.array([600, 600]), 80, 1), [695.0548001366581, 463.965319619292])
 
 
 def test_marcumq():
