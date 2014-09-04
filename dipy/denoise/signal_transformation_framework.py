@@ -269,14 +269,15 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
     eta = np.array(eta)
     cdf = np.zeros_like(m, dtype=np.float64)
 
-    # for idx in [np.logical_and(eta/sigma < m/sigma,  np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
-    #             np.logical_and(eta/sigma >= m/sigma, np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
-    #             np.abs(m) <= eps,
-    #             np.abs(eta) <= eps]:
+    for idx in [np.logical_and(eta/sigma < m/sigma,  np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
+                np.logical_and(eta/sigma >= m/sigma, np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
+                np.abs(m) <= eps,
+                np.abs(eta) <= eps]:
 
-    #     if cdf[idx].size > 0:
-    for idx in ndindex(cdf.shape):
-        cdf[idx] = 1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N)
+        if cdf[idx].size > 0:
+            cdf[idx] = 1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N)
+   # for idx in ndindex(cdf.shape):
+   #     cdf[idx] = 1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N)
 
     # Find outliers and clip them to the confidence interval limits
     print("clip cdf < ", np.sum(cdf < alpha/2), " > ", np.sum(cdf > 1 - alpha/2), "out of", cdf.size, cdf.min(), cdf.max())
