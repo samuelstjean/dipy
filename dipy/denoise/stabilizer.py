@@ -113,7 +113,7 @@ def main():
 
 
 
-    m_hat = nib.load('../dwis.nii.gz').get_data()
+    m_hat = nib.load('dwis.nii.gz').get_data()
 ##    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
 

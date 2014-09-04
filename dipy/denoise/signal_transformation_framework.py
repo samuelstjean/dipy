@@ -1,5 +1,8 @@
 from __future__ import division, print_function
 
+from time import time
+from copy import copy
+
 import numpy as np
 
 from scipy.special import erfinv, hyp1f1, ive, gammainccinv
@@ -7,16 +10,7 @@ from scipy.misc import factorial, factorial2
 from scipy.stats import mode
 from scipy.linalg import svd
 
-#from dipy.denoise.denspeed import noise_field
-
-
 from dipy.core.ndindex import ndindex
-#import mpmath as mp
-#from scipy.integrate import quad, romberg, romb
-#from scipy import stats
-
-from time import time
-from copy import copy
 
 
 def _inv_cdf_gauss(y, eta, sigma):
@@ -107,17 +101,10 @@ def _fixed_point_k(eta, m, sigma, N):
 
 def _marcumq(a, b, M, eps=1e-10):
 
-    #a = np.array(a, dtype=np.float64)
-    #b = np.array(b, dtype=np.float64)
-    #print(len(a), len(b), "a et b")
-    if np.abs(b) < eps:
-    #    print("cas 1")
-        return 1.
+    if np.abs(np.all(b)) < eps:
+        return np.ones_like(b)
 
-    if np.abs(a) < eps:
-        #k = np.arange(M)
-        #return np.exp(-b**2/2) * np.sum(b**(2*k) / (2**k * factorial(k)))
-    #    print("cas 2")
+    if np.abs(np.all(a)) < eps:
         temp = 0.
         for k in range(M):
             temp += b**(2*k) / (2**k * factorial(k))
@@ -125,42 +112,40 @@ def _marcumq(a, b, M, eps=1e-10):
         return np.exp(-b**2/2) * temp
 
     z = a * b
-    #expz = np.exp(-z)
+
     k = 0
-    #print(np.sum(np.isnan(expz)), np.sum(np.isinf(expz)))
-    #print(np.sum(np.isnan(iv(0, z))), np.sum(np.isinf(iv(0, z))))
-    #print(np.min(expz), np.min(z), np.min(a), np.min(b), np.max(z), np.max(a), np.max(b))
-    if a < b:
-    #    print("cas 3")
+
+    if np.all(a < b):
+
         s = 1
         c = 0
         x = a / b
-        d = x
+        d = copy(x)
         S = ive(0, z)
-       # print(np.sum(b<eps),b[b<eps],a.min(), b.min(), b.dtype,"b<eps")
+
         for k in range(1, M):
 
             S += (d + 1/d) * ive(k, z)
-            d = d * x
+            d *= x
 
         k += 1
 
     else:
-    #    print("cas 4")
+
         s = -1
         c = 1
         x = b / a
         k = M
         d = x**M
-        S = 0.  # np.zeros_like(z, dtype=np.float64)
+        S = np.zeros_like(z, dtype=np.float64)
 
-    cond = True  # np.ones_like(z, dtype=np.bool)
+    cond = np.ones_like(z, dtype=np.bool)
 
-    while cond:
+    while np.any(cond):
 
         t = d * ive(k, z)
         S += t
-        d = d * x
+        d *= x
         k += 1
 
         cond = np.abs(t/S) > eps
