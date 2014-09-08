@@ -5,8 +5,10 @@
 
 import dipy.viz.guillotine as guillotine
 import dipy.viz.fvtk as fvtk
-import dipy.viz.fvtk_actors as fvtk_actors
+import dipy.viz.fvtk_actors as fvtk_a
+import dipy.viz.fvtk_util as fvtk_u
 import nibabel as nib
+import numpy as np
 import argparse
 
 DESCRIPTION = """
@@ -58,6 +60,11 @@ def buildArgsParser():
                    default=(),
                    help="File paths of streamlines.",
                    nargs='*')
+    p.add_argument('-cmap',
+                   action='store',
+                   type=str,
+                   default=None,
+                   help="File paths of the colormap for streamlines")
     p.add_argument('-axes',
                    action='store_true',
                    help="Activate axes around volume.")
@@ -76,6 +83,19 @@ def buildArgsParser():
                    type=str,
                    default=None,
                    help="File path of the output screen capture.")
+    p.add_argument('-tube',
+                   action='store_true',
+                   default=False,
+                   help="Use streamtubes for streamlines")
+    p.add_argument('-lw',
+                   action='store',
+                   type=float,
+                   default="0.3",
+                   help="Set streamlines width")
+    p.add_argument('-autov',
+                   action='store_true',
+                   default=False,
+                   help="Set automaticly the camera angle with streamlines")
     p.add_argument('-va',
                    action='store',
                    type=angle,
@@ -177,10 +197,27 @@ def main():
         data, affine = load_data_volume(filename)
         g.add_data_volume(data, 0.5, affine)
 
+    if args.cmap is not None:
+        cmap, cmap_affine = load_data_volume(filename)
+    else:
+        cmap = None
+
     # Load streamlines
     for filename in args.strl:
         streamlines = load_streamlines(filename)
-        streamlines_actor = fvtk_actors.streamtube(streamlines, linewidth=0.3)
+        if cmap is None :
+            colors = None
+        else:
+            #transform points to find colors
+            strl_points = np.vstack(streamlines)
+            strl_points = nib.affines.apply_affine(np.linalg.inv(cmap_affine), strl_points)
+            colors = fvtk_u.trilinear_interp(cmap, strl_points)
+
+        if args.tube:
+            streamlines_actor = fvtk_a.streamtube(streamlines, colors, linewidth=args.lw)
+        else:
+            streamlines_actor = fvtk_a.line(streamlines, colors, linewidth=args.lw)
+
         g.add_actor(streamlines_actor)
 
     # Display colored axes at the origin
@@ -195,7 +232,28 @@ def main():
     if args.axes:
         g.toggle_axes()
 
-    if args.va is None:
+
+    # Move camera view
+    if args.autov:
+        # Automatic View
+        streamlines = load_streamlines(args.strl[0])
+        rotation = fvtk_u.rotation_from_lines(streamlines)
+        g.set_camera_transfo(rotation)
+
+        # AutoV Warnings
+        if len(args.strl) > 1:
+            print "warning ! AutoV, only use the first streamline", args.strl[0]
+        if args.va is not None or args.ca is not None :
+            print "warning ! AutoV, disable others camera view angle (va,ca,..)"
+
+        if args.sa is None:
+            # Set plane orientation
+            g.set_plane(args.sp, args.so)
+        else:
+            # Set slice angle
+            g.set_plane_angle(args.sa)
+
+    elif args.va is None:
         if args.sa is None:
             # Set plane orientation
             g.set_plane(args.sp, args.so)
