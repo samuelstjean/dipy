@@ -2,6 +2,7 @@
 from __future__ import division, print_function, absolute_import
 
 import numpy as np
+from dipy.core.ndindex import ndindex 
 
 # Conditional import machinery for vtk
 from dipy.utils.optpkg import optional_package
@@ -53,6 +54,77 @@ def set_input(vtk_object, input):
 
     vtk_object.Update()
     return vtk_object
+
+
+def evec_from_lines(lines, use_line_dir=True):
+    """ Get eigen vectors from lines directions in a 3x3 array 
+    
+    if use_line_dir is set to False
+        only use the points position information
+        
+    """
+    
+    if use_line_dir:
+        lines_dir = []
+        for line in lines:
+            lines_dir += [line[1:] - line[0:-1]]
+        directions = np.vstack(lines_dir)
+    else:
+        points = np.vstack(lines)
+        centered_points = points - np.mean(points,axis=0)
+        norm = np.sqrt(np.sum(centered_points**2,axis=1, keepdims=True))
+        directions = centered_points/norm
+        
+    U, e_val, e_vec = np.linalg.svd(directions, full_matrices=False)
+    return e_vec
+    
+
+def rotation_from_lines(lines, use_line_dir=True, use_full_eig=False):
+    """ Get the rotation from lines directions in vtk.vtkTransform() object
+    
+    if use_line_dir is set to False
+        only use the points position information
+        
+    if use_full_eig is set to True
+        the rotation will be the full eigen_vector matrix
+        (not only the Yaw and Pitch)
+        
+    Example
+    ----------
+    >>> camera = renderer.GetActiveCamera()
+    >>> rotation = rotation_from_lines(lines)
+    >>> camera.ApplyTransform(rotation)
+    >>> fvtk.show(renderer)
+    """
+    e_vec = evec_from_lines(lines, use_line_dir)
+    
+    matrix = vtk.vtkMatrix4x4()
+    
+    if use_full_eig:
+        for (i, j) in ndindex((3, 3)) :
+            matrix.SetElement(j, i, e_vec[i,j])
+        
+    else:
+        v1 = e_vec[2]
+        v2 = np.array([0,0,1])
+        v3 = np.cross(v1,v2)
+        v3 = v3/(np.sqrt(np.sum(v3**2)))
+        v4 = np.cross(v3,v1)
+        v4 = v4/(np.sqrt(np.sum(v4**2)))
+        
+        m1 = np.array([v1,v4,v3])
+        cos = np.dot(v2,v1)
+        sin = np.dot(v2,v4)
+        m2 = np.array([[cos,sin,0],[-sin,cos,0],[0,0,1]])
+        
+        m = np.dot( np.dot(m1.T,m2), m1)
+            
+        for (i, j) in ndindex((3, 3)) :
+            matrix.SetElement(i, j, m[i,j])
+            
+    transform = vtk.vtkTransform()
+    transform.SetMatrix(matrix)
+    return transform
 
 
 def trilinear_interp(input_array, indices):

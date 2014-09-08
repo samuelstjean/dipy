@@ -477,6 +477,21 @@ Guillotine Keys:
         self.set_camera_angle("axial")
         self.move_camera(azimuth, elevation, roll, zoom)
 
+
+
+    def set_camera_transfo(self, transfo):
+        """Sets the camera's position with vtk transformation
+
+        Parameters
+        ----------
+            transfo : vtk.vtkTransform
+                from a vtk.vtkMatrix4x4
+        """
+
+        cam = self.renderer.GetActiveCamera()
+        cam.ApplyTransform(transfo)
+
+
     def set_camera_angle(self, angle):
         """Sets the camera to a standard angle
 

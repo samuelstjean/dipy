@@ -1,5 +1,4 @@
 
-
 from __future__ import division, print_function, absolute_import
 
 from dipy.utils.six.moves import xrange
@@ -288,9 +287,14 @@ def lines_to_vtk_polydata(lines, colors=None):
         if cols_arr.dtype == np.object: # colors is a list of colors
             vtk_colors = numpy_to_vtk_colors(255 * np.vstack(colors))
         else:
-            if cols_arr.ndim == 1: # the same colors for all points
+            if len(cols_arr) == nb_points: # one colors per points / colormap way
+                vtk_colors = numpy_support.numpy_to_vtk(cols_arr, deep=True)
+                is_colormap = True
+
+            elif cols_arr.ndim == 1: # the same colors for all points
                 vtk_colors = numpy_to_vtk_colors(
-                                 np.tile(255 * cols_arr, (nb_points, 1)) )
+                                np.tile(255 * cols_arr, (nb_points, 1)) )
+
 
             elif cols_arr.ndim == 2: # map color to each line
                 colors_mapper = np.repeat(lines_range, points_per_line, axis=0)
@@ -311,19 +315,35 @@ def lines_to_vtk_polydata(lines, colors=None):
     return poly_data, is_colormap
 
 
-def colormap_lookup_table(value_range=(0,1), hue_range=(0.8,0), 
-                          saturation_range=(1,1) ):
+def colormap_lookup_table(scale_range=(0,1), hue_range=(0.8,0), 
+                          saturation_range=(1,1),  value_range=(0.8,0.8)):
     """ Default Lookup table for the colormap
     """
     vtk_lookup_table = vtk.vtkLookupTable()
-    vtk_lookup_table.SetTableRange(value_range)
+    vtk_lookup_table.SetRange(scale_range)
+    vtk_lookup_table.SetTableRange(scale_range)
 
     vtk_lookup_table.SetHueRange(hue_range)
     vtk_lookup_table.SetSaturationRange(saturation_range)
+    vtk_lookup_table.SetValueRange(value_range)
 
-    vtk_lookup_table.SetValueRange(0.8,0.8)
     vtk_lookup_table.Build()
     return vtk_lookup_table
+
+
+def scalar_bar(lookup_table):
+    """ Default Scalar bar actor for the colormap
+
+    Deepcopy the lookup_table because sometime vtkPolyDataMapper delete it
+    """
+    lookup_table_copy = vtk.vtkLookupTable()
+    lookup_table_copy.DeepCopy(lookup_table)
+    scalar_bar = vtk.vtkScalarBarActor()
+    scalar_bar.SetLookupTable(lookup_table_copy)
+    scalar_bar.SetNumberOfLabels(6)
+
+    return scalar_bar
+
 
 
 def plot_stats( values, names=None, colors=np.array([0,0,0,255]), 
@@ -371,4 +391,3 @@ def plot_stats( values, names=None, colors=np.array([0,0,0,255]),
         view.GetRenderer().AddActor2D(scalar_bar)
 
     return view
-
