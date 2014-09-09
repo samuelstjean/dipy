@@ -10,6 +10,7 @@ import dipy.viz.fvtk_util as fvtk_u
 import nibabel as nib
 import numpy as np
 import argparse
+from warnings import warn
 
 DESCRIPTION = """
     View and explore volume data and other sources through the Guillotine.
@@ -205,20 +206,25 @@ def main():
     # Load streamlines
     for filename in args.strl:
         streamlines = load_streamlines(filename)
+
+        #autoview rotation (only for the first bundle)
+        if args.autov and filename == args.strl[0]:
+            rotation = fvtk_u.rotation_from_lines(streamlines)
+
         if cmap is None :
             colors = None
         else:
             #transform points to find colors
-            strl_points = np.vstack(streamlines)
-            strl_points = nib.affines.apply_affine(np.linalg.inv(cmap_affine), strl_points)
-            colors = fvtk_u.trilinear_interp(cmap, strl_points)
+            points = np.vstack(streamlines)
+            points = nib.affines.apply_affine(np.linalg.inv(cmap_affine), points)
+            colors = fvtk_u.trilinear_interp(cmap, points)
 
         if args.tube:
-            streamlines_actor = fvtk_a.streamtube(streamlines, colors, linewidth=args.lw)
+            strl_actor = fvtk_a.streamtube(streamlines, colors, linewidth=args.lw)
         else:
-            streamlines_actor = fvtk_a.line(streamlines, colors, linewidth=args.lw)
+            strl_actor = fvtk_a.line(streamlines, colors, linewidth=args.lw)
 
-        g.add_actor(streamlines_actor)
+        g.add_actor(strl_actor)
 
     # Display colored axes at the origin
     if args.origin:
@@ -234,17 +240,14 @@ def main():
 
 
     # Move camera view
-    if args.autov:
-        # Automatic View
-        streamlines = load_streamlines(args.strl[0])
-        rotation = fvtk_u.rotation_from_lines(streamlines)
+    if args.autov and len(args.strl) > 0:
         g.set_camera_transfo(rotation)
 
         # AutoV Warnings
         if len(args.strl) > 1:
-            print "warning ! AutoV, only use the first streamline", args.strl[0]
+            warn("AutoView only use the first streamlines file :" + args.strl[0])
         if args.va is not None or args.ca is not None :
-            print "warning ! AutoV, disable others camera view angle (va,ca,..)"
+            warn("AutoView disable parameters for camera view angle(va,ca,...)")
 
         if args.sa is None:
             # Set plane orientation
