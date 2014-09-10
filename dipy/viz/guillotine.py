@@ -142,6 +142,7 @@ Guillotine Keys:
         g.show()
         """
 
+        self.is_built = False
         self.nb_data_volumes = 0
         self.plane = vtk.vtkPlane()
         self.blender = vtk.vtkImageBlend()
@@ -369,6 +370,8 @@ Guillotine Keys:
         self.plane_widget.PlaceWidget()
         self.plane_widget.SetNormal(0, 0, 1)
 
+        self.is_built = True
+        
         # Set axes
         self.axes.SetBounds(self.bbox[0],
                             self.bbox[1],
@@ -401,7 +404,9 @@ Guillotine Keys:
             normal : tuple of size 3
                 (x, y, z) direction of the normal
         """
-
+        
+        assert (self.is_built), "Error ! Call build() method before."
+        
         if origin is not None:
             # Constraint the origin inside the data limits
             eps = 0.0001
@@ -421,6 +426,8 @@ Guillotine Keys:
         ----------
             angle : string ("sagital", "coronal" or "axial")
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         if angle == "sagital":
             self.plane_widget.SetNormal(1, 0, 0)
@@ -449,6 +456,8 @@ Guillotine Keys:
                 ratio of the angle of view of the camera's virtual lens
                 (1.0 is 30 degrees, 2.0 is 15 degrees)
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         cam = self.renderer.GetActiveCamera()
         cam.Azimuth(azimuth)
@@ -473,11 +482,11 @@ Guillotine Keys:
                 ratio of the angle of view of the camera's virtual lens
                 (1.0 is 30 degrees, 2.0 is 15 degrees)
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         self.set_camera_angle("axial")
         self.move_camera(azimuth, elevation, roll, zoom)
-
-
 
     def set_camera_transfo(self, transfo):
         """Sets the camera's position with vtk transformation
@@ -487,10 +496,11 @@ Guillotine Keys:
             transfo : vtk.vtkTransform
                 from a vtk.vtkMatrix4x4
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         cam = self.renderer.GetActiveCamera()
         cam.ApplyTransform(transfo)
-
 
     def set_camera_angle(self, angle):
         """Sets the camera to a standard angle
@@ -499,6 +509,8 @@ Guillotine Keys:
         ----------
             angle : string ("sagital", "coronal" or "axial")
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         cam = self.renderer.GetActiveCamera()
 
@@ -529,6 +541,8 @@ Guillotine Keys:
         ----------
             angle : string ("sagital", "coronal" or "axial")
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         self.set_camera_angle(angle)
         self.set_plane_angle(angle)
@@ -536,6 +550,8 @@ Guillotine Keys:
     def toggle_axes(self):
         """Toggles the display of the axes
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         self.axes.SetXAxisVisibility(not self.axes.GetXAxisVisibility())
         self.axes.SetYAxisVisibility(not self.axes.GetYAxisVisibility())
@@ -556,6 +572,8 @@ Guillotine Keys:
             widget allows you to pla with the displayed data. The key actions
             are described in th _callback function.
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         self.renderer.Render()
         self.interactor.Initialize()
@@ -577,6 +595,8 @@ Guillotine Keys:
             render_size : tuple of size 2
                 Width and height of the captured image
         """
+        
+        assert (self.is_built), "Error ! Call build() method before."
 
         number = 0
         if filename is None:
