@@ -25,7 +25,7 @@ g1 = Guillotine()
 """
 Load an FA and it's affine transformation for a simple example.
 """
-simple_fa = "/home/algo/Documents/data/fa.nii.gz"
+simple_fa = '/home/eleftherios/Data/MPI_Elef/fa_1x1x1.nii.gz'
 simple_fa_data, simple_fa_affine = load_data_volume(simple_fa)
  
 """
@@ -53,15 +53,18 @@ Load RGB FA and B0 data. Note that the first one to be added is the one with
 the most components, in color, and that opacities are respectively always 100%
 for the first, then 50% and 25%. 
 """
-rgb = "/home/algo/Documents/data/set2/rgb.nii"
+#rgb = "/home/algo/Documents/data/set2/rgb.nii"
+rgb = '/home/eleftherios/Data/MPI_Elef/rgb_1x1x1.nii.gz'
 rgb_data, rgb_affine = load_data_volume(rgb)
 g2.add_data_volume(rgb_data, affine=rgb_affine)
   
-fa = "/home/algo/Documents/data/set2/fa.nii"
+
+fa = '/home/eleftherios/Data/MPI_Elef/fa_1x1x1.nii.gz'
 fa_data, fa_affine = load_data_volume(fa)
 g2.add_data_volume(fa_data, 0.5, fa_affine)
   
-b0 = "/home/algo/Documents/data/set2/b0.nii"
+#b0 = "/home/algo/Documents/data/set2/b0.nii"
+b0 = '/home/eleftherios/Data/MPI_Elef/fa_1x1x1.nii.gz'
 b0_data, b0_affine = load_data_volume(b0)
 g2.add_data_volume(b0_data, 0.25, b0_affine)
  

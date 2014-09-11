@@ -24,7 +24,11 @@ import dipy.viz.fvtk_actors as vtk_a
 """
 2. Read/write trackvis streamline files with nibabel.
 """
-streamlines_file = "data/bundles_cc_1.trk"
+
+dname = '/home/eleftherios/Data/fancy_data/2013_02_14_Samuel_St-Jean/TRK_files/'
+
+
+streamlines_file = dname + "bundles_cc_1.trk"
 streams, hdr = nib.trackvis.read(streamlines_file, points_space='rasmm')
 lines = [s[0] for s in streams]
 

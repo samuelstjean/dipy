@@ -24,14 +24,17 @@ import dipy.viz.fvtk_actors as vtk_a
 """
 2. Read/write trackvis streamline files with nibabel.
 """
-streamlines_file = "data/bundles_cc_1.trk"
+
+dname = '/home/eleftherios/Data/fancy_data/2013_02_14_Samuel_St-Jean/TRK_files/'
+
+streamlines_file = dname + "bundles_cc_1.trk"
 streams, hdr = nib.trackvis.read(streamlines_file, points_space='rasmm')
 lines = [s[0] for s in streams]
 
 """
 3. Load colormap (FA map for this example)
 """
-fa_file = nib.load("data/fa_1x1x1.nii.gz")
+fa_file = nib.load(dname + "../fa_1x1x1.nii.gz")
 fa_colormap = fa_file.get_data()
 colormap_affine = fa_file.get_affine()
 
@@ -52,7 +55,6 @@ renderer = fvtk.ren()
 fvtk.add(renderer, fvtk_tubes)
 fvtk.add(renderer, scalar_bar)
 fvtk.show(renderer)
-
 
 """
 6. Generate and render fvtk streamline with scalar_bar
