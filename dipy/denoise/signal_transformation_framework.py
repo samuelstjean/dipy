@@ -99,12 +99,70 @@ def _fixed_point_k(eta, m, sigma, N):
     return eta - num / denom
 
 
-def _marcumq(a, b, M, eps=1e-10):
+# def _marcumq(a, b, M, eps=1e-7):
 
-    if np.abs(np.all(b)) < eps:
+#     # if np.all(np.abs(b) < eps):
+#     #     return np.ones_like(b)
+
+#     # if np.all(np.abs(a) < eps):
+#     #     temp = 0.
+#     #     for k in range(M):
+#     #         temp += b**(2*k) / (2**k * factorial(k))
+
+#     #     return np.exp(-b**2/2) * temp
+
+#     a = np.array(a, dtype=np.float64)
+#     b = np.array(b, dtype=np.float64)
+#     aa = 0.5 * a**2
+#     bb = 0.5 * b**2
+#     d = np.exp(-aa)
+#     h = copy(d)
+#     f = (bb**M) * np.exp(-bb) / factorial(M)
+#     f_err = np.exp(-bb)
+#     errbnd = 1 - f_err
+#  #   errbnd[errbnd == 1] = 0.  # exp too negative
+#     k = 1
+#     delta = f * h
+#     S = copy(delta)
+#     j = np.array((errbnd > 4*eps), dtype=np.bool) #& ((1-S) > 8*eps), dtype=np.bool)
+
+#     while np.any(j):# | k <= m:
+#         d[j] = aa[j] * d[j]/k
+#         # d[j] *= aa[j]/k
+#         h[j] += d[j]
+#         f[j] = bb[j] * f[j] / (k + M)
+#         # f[j] = bb[j] / (k + M)
+#         delta[j] = f[j] * h[j]
+#         S[j] += delta[j]
+#         f_err[j] *= bb[j] / k
+#         errbnd[j] -= f_err[j]
+#         j = (errbnd > 4*eps) # & ((1 - S) > 8*eps)
+#         k += 1
+#         # print(k)
+#         # print(delta)
+#         # print(S)
+#         # print(errbnd)
+#         # print(eps*(1-S))
+#         # print(errbnd > 4*eps)
+#         # print((1 - S) > 8*eps)
+#         # print(np.sum(errbnd > 4*eps))
+#         # print(errbnd[j])
+#         # print(f_err[j])
+#         # if (k > 100000):
+#         #     j = j & np.any((delta > eps*(1-S)))
+
+#     return 1 - S
+
+
+def _marcumq(a, b, M, eps=1e-7):
+
+    a = np.array(a, dtype=np.float64)
+    b = np.array(b, dtype=np.float64)
+
+    if np.all(np.abs(b) < eps):
         return np.ones_like(b)
 
-    if np.abs(np.all(a)) < eps:
+    if np.all(np.abs(a) < eps):
         temp = 0.
         for k in range(M):
             temp += b**(2*k) / (2**k * factorial(k))
@@ -112,7 +170,6 @@ def _marcumq(a, b, M, eps=1e-10):
         return np.exp(-b**2/2) * temp
 
     z = a * b
-
     k = 0
 
     if np.all(a < b):
@@ -140,14 +197,15 @@ def _marcumq(a, b, M, eps=1e-10):
         S = np.zeros_like(z, dtype=np.float64)
 
     cond = np.ones_like(z, dtype=np.bool)
+    t = np.zeros_like(z, dtype=np.float64)
 
     while np.any(cond):
 
-        t = d * ive(k, z)
-        S += t
-        d *= x
+        t[cond] = d[cond] * ive(k, z[cond])
+        S[cond] += t[cond]
+        d[cond] *= x[cond]
         k += 1
-
+        print(np.min(d), np.max(d))
         cond = np.abs(t/S) > eps
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
@@ -276,6 +334,7 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 
         if cdf[idx].size > 0:
             cdf[idx] = 1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N)
+
    # for idx in ndindex(cdf.shape):
    #     cdf[idx] = 1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N)
 
@@ -360,17 +419,17 @@ def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-8):
 
             sum_ind0 = np.sum(ind)
 
-        # if np.all(delta[idx] > 0):
-        #     out[idx] = -t1[idx]
-        #
-        # if np.all(delta[idx] < 0):
-        #     out[idx] = t1[idx]
+        if np.all(delta[idx] > 0):
+            out[idx] = -t1[idx]
 
-    for idx in ndindex(delta.shape):
-        if delta[idx] > 0:
-            t1[idx] *= -1
+        if np.all(delta[idx] < 0):
+            out[idx] = t1[idx]
 
-    return t1
+    # for idx in ndindex(delta.shape):
+    #     if delta[idx] > 0:
+    #         t1[idx] *= -1
+
+    # return t1
 
     print(np.sum(np.isnan(out)),  np.sum(np.isinf(out)))
     return out
