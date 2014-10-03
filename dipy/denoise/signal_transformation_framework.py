@@ -99,62 +99,62 @@ def _fixed_point_k(eta, m, sigma, N):
     return eta - num / denom
 
 
-# def _marcumq(a, b, M, eps=1e-7):
+def _marcumq_matlab(a, b, M, eps=1e-7):
 
-#     # if np.all(np.abs(b) < eps):
-#     #     return np.ones_like(b)
+    # if np.all(np.abs(b) < eps):
+    #     return np.ones_like(b)
 
-#     # if np.all(np.abs(a) < eps):
-#     #     temp = 0.
-#     #     for k in range(M):
-#     #         temp += b**(2*k) / (2**k * factorial(k))
+    # if np.all(np.abs(a) < eps):
+    #     temp = 0.
+    #     for k in range(M):
+    #         temp += b**(2*k) / (2**k * factorial(k))
 
-#     #     return np.exp(-b**2/2) * temp
+    #     return np.exp(-b**2/2) * temp
 
-#     a = np.array(a, dtype=np.float64)
-#     b = np.array(b, dtype=np.float64)
-#     aa = 0.5 * a**2
-#     bb = 0.5 * b**2
-#     d = np.exp(-aa)
-#     h = copy(d)
-#     f = (bb**M) * np.exp(-bb) / factorial(M)
-#     f_err = np.exp(-bb)
-#     errbnd = 1 - f_err
-#  #   errbnd[errbnd == 1] = 0.  # exp too negative
-#     k = 1
-#     delta = f * h
-#     S = copy(delta)
-#     j = np.array((errbnd > 4*eps), dtype=np.bool) #& ((1-S) > 8*eps), dtype=np.bool)
+    a = np.array(a, dtype=np.float64)
+    b = np.array(b, dtype=np.float64)
+    aa = 0.5 * a**2
+    bb = 0.5 * b**2
+    d = np.exp(-aa)
+    h = copy(d)
+    f = (bb**M) * np.exp(-bb) / factorial(M)
+    f_err = np.exp(-bb)
+    errbnd = 1 - f_err
+ #   errbnd[errbnd == 1] = 0.  # exp too negative
+    k = 1
+    delta = f * h
+    S = copy(delta)
+    j = np.array((errbnd > 4*eps), dtype=np.bool) #& ((1-S) > 8*eps), dtype=np.bool)
 
-#     while np.any(j):# | k <= m:
-#         d[j] = aa[j] * d[j]/k
-#         # d[j] *= aa[j]/k
-#         h[j] += d[j]
-#         f[j] = bb[j] * f[j] / (k + M)
-#         # f[j] = bb[j] / (k + M)
-#         delta[j] = f[j] * h[j]
-#         S[j] += delta[j]
-#         f_err[j] *= bb[j] / k
-#         errbnd[j] -= f_err[j]
-#         j = (errbnd > 4*eps) # & ((1 - S) > 8*eps)
-#         k += 1
-#         # print(k)
-#         # print(delta)
-#         # print(S)
-#         # print(errbnd)
-#         # print(eps*(1-S))
-#         # print(errbnd > 4*eps)
-#         # print((1 - S) > 8*eps)
-#         # print(np.sum(errbnd > 4*eps))
-#         # print(errbnd[j])
-#         # print(f_err[j])
-#         # if (k > 100000):
-#         #     j = j & np.any((delta > eps*(1-S)))
+    while np.any(j):# | k <= m:
+        d[j] = aa[j] * d[j]/k
+        # d[j] *= aa[j]/k
+        h[j] += d[j]
+        f[j] = bb[j] * f[j] / (k + M)
+        # f[j] = bb[j] / (k + M)
+        delta[j] = f[j] * h[j]
+        S[j] += delta[j]
+        f_err[j] *= bb[j] / k
+        errbnd[j] -= f_err[j]
+        j = (errbnd > 4*eps) # & ((1 - S) > 8*eps)
+        k += 1
+        # print(k)
+        # print(delta)
+        # print(S)
+        # print(errbnd)
+        # print(eps*(1-S))
+        # print(errbnd > 4*eps)
+        # print((1 - S) > 8*eps)
+        # print(np.sum(errbnd > 4*eps))
+        # print(errbnd[j])
+        # print(f_err[j])
+        # if (k > 100000):
+        #     j = j & np.any((delta > eps*(1-S)))
 
-#     return 1 - S
+    return 1 - S
 
 
-def _marcumq(a, b, M, eps=1e-7):
+def _marcumq_octave(a, b, M, eps=1e-7):
 
     a = np.array(a, dtype=np.float64)
     b = np.array(b, dtype=np.float64)
@@ -333,11 +333,16 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
                 np.abs(eta) <= eps]:
 
         if cdf[idx].size > 0:
-            cdf[idx] = 1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N)
+            cdf[idx] = 1 - _marcumq_octave(eta[idx]/sigma, m[idx]/sigma, N)
+
+    # octave code does not play well with eta < 0...
+    idx = eta < 0
+    print("eta < 0", np.sum(idx))
+    cdf[idx] = 1 - _marcumq_matlab(eta[idx]/sigma, m[idx]/sigma, N)
 
    # for idx in ndindex(cdf.shape):
    #     cdf[idx] = 1 - _marcumq(eta[idx]/sigma, m[idx]/sigma, N)
-
+    #print(cdf, 1 - _marcumq_matlab(eta[idx]/sigma, m[idx]/sigma, N), m, eta, sigma, N)
     # Find outliers and clip them to the confidence interval limits
     print("clip cdf < ", np.sum(cdf < alpha/2), " > ", np.sum(cdf > 1 - alpha/2), "out of", cdf.size, cdf.min(), cdf.max())
     np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
@@ -511,7 +516,7 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
 
         sig_prev = 0.
         omega_size = 1
-        idx = np.zeros_like(sum_m2, dtype=np.bool)
+        #idx = np.zeros_like(sum_m2, dtype=np.bool)
 
         for n in range(itermax):
 

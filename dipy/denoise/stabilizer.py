@@ -112,10 +112,10 @@ def main():
 
     m_hat = nlmeans(data, sigma_mode, rician=False)
 #    m_hat = data
+   # m_hat *= mask_noise[..., None]
 
 
-
-#    m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b3000/18sep/dwis_SNR-10_coils-12_nlm.nii.gz').get_data()
+  #  m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b3000/dwis.nii.gz').get_data()
 #    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
 
