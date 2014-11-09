@@ -10,7 +10,7 @@ import argparse
 
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
 from scipy.stats import mode
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import gaussian_filter, convolve
 from dipy.denoise.nlmeans import nlmeans
 from skimage.restoration import denoise_bilateral
 
@@ -37,8 +37,7 @@ def buildArgsParser():
     p.add_argument('-N', action='store', dest='N',
                    metavar=' ', required=True, type=int,
                    help='Number of receiver coils of the scanner for GRAPPA \
-                   reconstruction. Use 1 in the case of a SENSE reconstruction. \
-                   Default : 4 for the 1.5T from Sherbrooke.')
+                   reconstruction. Use 1 in the case of a SENSE reconstruction.')
 
     p.add_argument('-o', action='store', dest='savename',
                    metavar='savename', required=False, default=None, type=str,
@@ -90,10 +89,8 @@ def main():
 #    for idx in range(data.shape[-1]):
 #        m_hat[..., idx] = denoise_bilateral(data[..., idx], sigma_range=0.1, sigma_spatial=15)
 
-
     for idx in range(data.shape[-2]):
         print("Now processing slice", idx+1, "out of", data.shape[-2])
-
         sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
 
     print(sigma)
@@ -102,33 +99,33 @@ def main():
     #sigma_mode = np.load(filename + "_sigma.npy")
 
     sigma_mode, num = mode(sigma, axis=None)
+   # sigma_mode=25.62295723
     print("mode of sigma is", sigma_mode, "with nb", num, "median is", np.median(sigma))
     np.save(filename + "_sigma.npy", sigma_mode)
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
 
-#    m_hat = np.zeros_like(data, dtype=np.float64)
-#    for idx in range(data.shape[-1]):
-#        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
+    m_hat = np.zeros_like(data, dtype=np.float32)
+    k = np.ones((3, 3, 3))
+    for idx in range(data.shape[-1]):
+        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
+        m_hat[..., idx] = convolve(data[..., idx], k)
+        # cur_max = np.max(data[..., idx])
+        # m_hat[..., idx] = cur_max * denoise_bilateral(data[..., idx]/cur_max, sigma_range=0.1, sigma_spatial=0.5)
 
-    m_hat = nlmeans(data, sigma_mode, rician=False)
-#    m_hat = data
+   # m_hat = nlmeans(data, sigma_mode, rician=False)
+    # m_hat = data
    # m_hat *= mask_noise[..., None]
 
 
-  #  m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b3000/dwis.nii.gz').get_data()
-#    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
+   # m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b1000/dwis.nii.gz').get_data()
+    nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
-
-
 
     eta = fixed_point_finder(m_hat, sigma_mode, N)
     #eta=m_hat
     print(data.shape, m_hat.shape, eta.shape)
     nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta.nii.gz')
 
-        #eta[..., idx, :] = fixed_point_finder(data[..., idx, :], sigma[idx], N)
-
-    ##data_stabilized = chi_to_gauss(m_hat, eta, sigma_mode, N)
     data_stabilized = chi_to_gauss(data, eta, sigma_mode, N)
 
     print("temps total:", time() - deb)

@@ -5,13 +5,14 @@ from copy import copy
 
 import numpy as np
 
-from scipy.special import erfinv, hyp1f1, ive, gammainccinv
+from scipy.special import erfinv, ive, gammainccinv # hyp1f1,
 from scipy.misc import factorial, factorial2
 from scipy.stats import mode
 from scipy.linalg import svd
 
 from dipy.core.ndindex import ndindex
 
+from scilpy.denoising.hyp1f1 import hyp1f1
 
 def _inv_cdf_gauss(y, eta, sigma):
     return eta + sigma * np.sqrt(2) * erfinv(2*y - 1)
@@ -205,7 +206,7 @@ def _marcumq_octave(a, b, M, eps=1e-7):
         S[cond] += t[cond]
         d[cond] *= x[cond]
         k += 1
-        print(np.min(d), np.max(d))
+      #  print(np.min(d), np.max(d))
         cond = np.abs(t/S) > eps
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
@@ -327,8 +328,8 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
     eta = np.array(eta)
     cdf = np.zeros_like(m, dtype=np.float64)
 
-    for idx in [np.logical_and(eta/sigma < m/sigma,  np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
-                np.logical_and(eta/sigma >= m/sigma, np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)),
+    for idx in [np.logical_and(np.logical_and(eta/sigma < m/sigma,  np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)), eta > 0),
+                np.logical_and(np.logical_and(eta/sigma >= m/sigma, np.logical_and(np.abs(eta) > eps, np.abs(m) > eps)), eta > 0),
                 np.abs(m) <= eps,
                 np.abs(eta) <= eps]:
 
@@ -350,13 +351,13 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-8):
+def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
 
-    m = copy(m_hat).astype(np.float64)
+    m = copy(m_hat).astype(np.float32)
     delta = _beta(N) * sigma - m_hat
-    out = np.zeros_like(delta)
-    t0 = np.zeros_like(delta)
-    t1 = np.zeros_like(delta)
+    out = np.zeros_like(delta, dtype=np.float32)
+    t0 = np.zeros_like(delta, dtype=np.float32)
+    t1 = np.zeros_like(delta, dtype=np.float32)
 
     for idx in [delta < 0, delta > 0]:
         ###print(idx)
@@ -435,8 +436,6 @@ def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-8):
     #         t1[idx] *= -1
 
     # return t1
-
-    print(np.sum(np.isnan(out)),  np.sum(np.isinf(out)))
     return out
     #return t1
 
@@ -496,7 +495,11 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
     denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
     #m = np.median(data) / denom
     m = np.percentile(data, q*100) / denom
-    #print(m)
+
+    # More zero voxels than anything : not useable
+    if m == 0:
+        return 0, np.zeros_like(data[..., 0], dtype=np.bool)
+
     phi = np.arange(1, l + 1) * m/l
     K = data.shape[-1]
     sum_m2 = np.sum(data**2, axis=-1)
@@ -546,7 +549,7 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
         # Remember the biggest omega array as giving the optimal
         # sigma amongst all initial estimates from phi
         if omega_size > max_length_omega:
-            pos, max_length_omega, best_mask = num, omega_size, idx
+            pos, max_length_omega = num, omega_size
         #print('3  ', omega_size, omega.size, type(omega_size), type(omega.size))
         sigma[num] = sig
         mask[num] = idx
@@ -660,3 +663,60 @@ def local_means(arr, radius=1):
         #                           arr[idx[2]-radius:arr[idx[2]+radius+1]])
 
     return out
+
+from scilpy.denoising.utils import im2col_nd, col2im_nd, padding
+def lpca(img, sigma):
+
+    shape = img.shape
+   # img=padding(img, (3, 3, 3, shape[-1]), (2, 2, 2, 1))
+    mat = im2col_nd(img, (3, 3, 3, img.shape[-1]), (2, 2, 2, 1))
+    out = np.zeros_like(mat)
+    thresh = 2.3 * sigma**2
+    print(mat.shape, img.shape, shape)
+    for i in range(mat.shape[0]):
+       # print(i)
+        current = np.zeros((3**3, 65), dtype=np.float32)
+        for j in range(27):
+            current[:, j] = mat[i,j*27:(j+1)*27]
+
+        mean = np.mean(current, axis=0, keepdims=True)
+        U, s, Vt = svd(current - mean, full_matrices=False)
+        # print(current.shape, mean.shape)
+       # print(np.sum(s>0),s.max())
+       # s[s < thresh] = 0
+        #print(np.sum(s>0), s.max())
+        out[i] = np.ravel(np.dot(U * s, Vt) + mean)
+
+        out[i] = current.ravel()
+    print(out.shape, mat.shape, img.shape, shape, shape[-1])
+    print((3, 3, 3, img.shape[-1]), img.shape, (2, 2, 2, 1))
+    return col2im_nd(out.T, (3, 3, 3, img.shape[-1]), img.shape, (2, 2, 2, 1))
+
+
+from dipy.denoise.denspeed import non_stat_noise
+
+
+def estimate_sigma(arr):
+    """Standard deviation estimation from local patches
+
+    Parameters
+    ----------
+    arr : 3D or 4D ndarray
+        The array to be estimated
+
+    Returns
+    -------
+    sigma : ndarray
+        map of standard deviation of the noise.
+    """
+
+    if arr.ndim == 3:
+        arr = arr[..., None]
+
+    sigma = np.zeros_like(arr, dtype=np.float32)
+
+    for i in range(sigma.shape[-1]):
+        sigma[..., i] = non_stat_noise(arr[..., i])
+        #print(non_stat_noise(arr[..., i]).shape)
+
+    return sigma

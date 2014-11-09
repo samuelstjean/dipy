@@ -496,3 +496,184 @@ cdef cnp.npy_intp copy_block_4d(double * dest,
                 memcpy(&dest[i * J * K * L + j * K * L + k * L], &source[i + min_i, j + min_j, k + min_k, min_l], L * sizeof(double))
 
     return 1
+
+
+def non_stat_noise(arr, mask=None,  patch_radius=1, block_radius=5):
+    """ Non-local means for denoising 3D images
+
+    Parameters
+    ----------
+    arr : 3D ndarray
+        The array to be denoised
+    mask : 3D ndarray
+    sigma : float
+        standard deviation of the noise estimated from the data
+    patch_radius : int
+        patch size is ``2 x patch_radius + 1``. Default is 1.
+    block_radius : int
+        block size is ``2 x block_radius + 1``. Default is 5.
+    rician : boolean
+        If True the noise is estimated as Rician, otherwise Gaussian noise
+        is assumed.
+
+    Returns
+    -------
+    denoised_arr : ndarray
+        the denoised ``arr`` which has the same shape as ``arr``.
+
+    """
+    if arr.ndim != 3:
+        raise ValueError('arr needs to be a 3D ndarray')
+
+    if mask is None:
+        mask = np.ones_like(arr, dtype='f8', order='C')
+    else:
+        mask = np.ascontiguousarray(mask, dtype='f8')
+
+    if mask.ndim != 3:
+        raise ValueError('arr needs to be a 3D ndarray')
+
+    arr = np.ascontiguousarray(arr, dtype='f8')
+    arr = add_padding_reflection(arr, block_radius)
+    mask = add_padding_reflection(mask.astype('f8'), block_radius)
+    arrnlm = _non_stat_noise(arr, mask, patch_radius, block_radius)
+
+    return remove_padding(arrnlm, block_radius)
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+def _non_stat_noise(double [:, :, ::1] arr, double [:, :, ::1] mask,
+                    patch_radius=1, block_radius=5):
+    """ This algorithm denoises the value of every voxel (i, j ,k) by
+    calculating a weight between a moving 3D patch and a static 3D patch
+    centered at (i, j, k). The moving patch can only move inside a
+    3D block.
+    """
+
+    cdef:
+        cnp.npy_intp i, j, k, I, J, K
+        double [:, :, ::1] out = np.zeros_like(arr)
+        double summ = 0
+        double sigm = 0
+        cnp.npy_intp P = patch_radius
+        cnp.npy_intp B = block_radius
+
+    I = arr.shape[0]
+    J = arr.shape[1]
+    K = arr.shape[2]
+
+    #move the block
+    with nogil, parallel():
+        for i in prange(B, I - B):
+            for j in range(B, J - B):
+                for k in range(B, K - B):
+
+                    if mask[i, j, k] == 0:
+                        continue
+
+                    out[i, j, k] = block_variance(arr, i, j, k, B, P, sigm)
+
+    return np.asarray(out)
+
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+@cython.cdivision(True)
+cdef double block_variance(double [:, :, ::1] arr,
+                           cnp.npy_intp i, cnp.npy_intp j, cnp.npy_intp k,
+                           cnp.npy_intp B, cnp.npy_intp P, double sigma) nogil:
+    """ Process the block with center at (i, j, k)
+
+    Parameters
+    ----------
+    arr : 3D array
+        C contiguous array of doubles
+    i, j, k : int
+        center of block
+    B : int
+        block radius
+    P : int
+        patch radius
+    sigma : double
+
+    Returns
+    -------
+    new_value : double
+    """
+
+    cdef:
+        cnp.npy_intp m, n, o, M, N, O, a, b, c, cnt, step
+        double patch_vol_size
+        double summ, d, w, sumd, sum_out, x
+        double * mean
+        double * cache
+        double * R
+        double denom
+        double min_d
+        cnp.npy_intp BS = B * 2 + 1
+
+    cnt = 0
+    min_d = 1e15
+    patch_vol_size = (P + P + 1) * (P + P + 1) * (P + P + 1)
+    mean = <double *> malloc(BS * BS * BS * sizeof(double))
+    cache = <double *> malloc(BS * BS * BS * sizeof(double))
+    R = <double *> malloc(BS * BS * BS * sizeof(double))
+
+    # (i, j, k) coordinates are the center of the static patch
+    # copy block in cache
+    copy_block_3d(cache, BS, BS, BS, arr, i - B, j - B, k - B)
+
+    # Compute the mean of each block
+    # (m, n, o) coordinates are the center of the moving patch
+    # (a, b, c) run inside both patches
+    for m in range(P, BS - P):
+        for n in range(P, BS - P):
+            for o in range(P, BS - P):
+
+                summ = 0
+
+                # calculate mean
+                for a in range(- P, P + 1):
+                    for b in range(- P, P + 1):
+                        for c in range(- P, P + 1):
+
+                            # this line takes most of the time! mem access
+                            summ += cache[(B + a) * BS * BS + (B + b) * BS + (B + c)]
+
+                mean[cnt] = summ
+                cnt += 1
+
+    # Calculate low pass filtered volume
+    for m in range(P, BS - P):
+        for n in range(P, BS - P):
+            for o in range(P, BS - P):
+                for a in range(- P, P + 1):
+                    for b in range(- P, P + 1):
+                        for c in range(- P, P + 1):
+
+                            # this line takes most of the time! mem access
+                            R[(m + a) * BS * BS + (n + b) * BS + (o + c)] = cache[(B + a) * BS * BS + (B + b) * BS + (B + c)] - mean[(m + a) * BS * BS + (n + b) * BS + (o + c)]
+
+    # Compute d
+    for m in range(P, BS - P):
+        for n in range(P, BS - P):
+            for o in range(P, BS - P):
+
+                sumd = 0
+
+                for a in range(- P, P + 1):
+                    for b in range(- P, P + 1):
+                        for c in range(- P, P + 1):
+
+                            # this line takes most of the time! mem access
+                            d = R[(B + a) * BS * BS + (B + b) * BS + (B + c)] - R[(m + a) * BS * BS + (n + b) * BS + (o + c)]
+                            sumd += d * d
+
+                if sumd < min_d:
+                    min_d = sumd
+    free(cache)
+    free(mean)
+    free(R)
+
+    return min_d
