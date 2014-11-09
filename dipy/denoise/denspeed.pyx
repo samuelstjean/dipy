@@ -605,7 +605,7 @@ cdef double block_variance(double [:, :, ::1] arr,
     cdef:
         cnp.npy_intp m, n, o, M, N, O, a, b, c, cnt, step
         double patch_vol_size
-        double summ, d, w, sumd, sum_out, x
+        double summ, d, w, sumd, elem
         double * mean
         double * cache
         double * R
@@ -632,25 +632,27 @@ cdef double block_variance(double [:, :, ::1] arr,
             for o in range(P, BS - P):
 
                 summ = 0
+                elem = 0
 
                 # calculate mean
-                for a in range(- P, P + 1):
-                    for b in range(- P, P + 1):
-                        for c in range(- P, P + 1):
+                for a in range(-P, P + 1):
+                    for b in range(-P, P + 1):
+                        for c in range(-P, P + 1):
 
                             # this line takes most of the time! mem access
                             summ += cache[(B + a) * BS * BS + (B + b) * BS + (B + c)]
+                            elem += 1.
 
-                mean[cnt] = summ
+                mean[cnt] = summ / elem
                 cnt += 1
 
     # Calculate low pass filtered volume
     for m in range(P, BS - P):
         for n in range(P, BS - P):
             for o in range(P, BS - P):
-                for a in range(- P, P + 1):
-                    for b in range(- P, P + 1):
-                        for c in range(- P, P + 1):
+                for a in range(-P, P + 1):
+                    for b in range(-P, P + 1):
+                        for c in range(-P, P + 1):
 
                             # this line takes most of the time! mem access
                             R[(m + a) * BS * BS + (n + b) * BS + (o + c)] = cache[(B + a) * BS * BS + (B + b) * BS + (B + c)] - mean[(m + a) * BS * BS + (n + b) * BS + (o + c)]
