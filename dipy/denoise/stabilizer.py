@@ -99,7 +99,7 @@ def main():
     #sigma_mode = np.load(filename + "_sigma.npy")
 
     sigma_mode, num = mode(sigma, axis=None)
-   # sigma_mode=25.62295723
+    sigma_mode=80.#25.62295723
     print("mode of sigma is", sigma_mode, "with nb", num, "median is", np.median(sigma))
     np.save(filename + "_sigma.npy", sigma_mode)
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')

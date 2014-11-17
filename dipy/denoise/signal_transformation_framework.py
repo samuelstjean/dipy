@@ -694,6 +694,7 @@ def lpca(img, sigma):
 
 
 from dipy.denoise.denspeed import non_stat_noise
+from scipy.ndimage import convolve
 
 
 def estimate_sigma(arr):
@@ -714,9 +715,10 @@ def estimate_sigma(arr):
         arr = arr[..., None]
 
     sigma = np.zeros_like(arr, dtype=np.float32)
-
+    k = np.ones((3,3,3), dtype=np.int16)
+    
     for i in range(sigma.shape[-1]):
-        sigma[..., i] = non_stat_noise(arr[..., i])
+        sigma[..., i] = non_stat_noise(arr[..., i] - convolve(arr[..., i], k)/np.sum(k))
         #print(non_stat_noise(arr[..., i]).shape)
 
     return sigma

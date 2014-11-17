@@ -107,7 +107,7 @@ def nlmeans_4d(arr, mask=None, sigma=None, patch_radius=1,
 def _nlmeans_3d(double [:, :, ::1] arr, double [:, :, ::1] mask,
                 sigma, patch_radius=1, block_radius=5,
                 rician=True):
-    """ This algorithm denoises the value of every voxel (i, j ,k) by
+    """ This algorithm denoises the value of every voxel (i, j, k) by
     calculating a weight between a moving 3D patch and a static 3D patch
     centered at (i, j, k). The moving patch can only move inside a
     3D block.
@@ -545,7 +545,7 @@ def non_stat_noise(arr, mask=None,  patch_radius=1, block_radius=5):
 @cython.boundscheck(False)
 def _non_stat_noise(double [:, :, ::1] arr, double [:, :, ::1] mask,
                     patch_radius=1, block_radius=5):
-    """ This algorithm denoises the value of every voxel (i, j ,k) by
+    """ This algorithm denoises the value of every voxel (i, j, k) by
     calculating a weight between a moving 3D patch and a static 3D patch
     centered at (i, j, k). The moving patch can only move inside a
     3D block.
@@ -606,19 +606,14 @@ cdef double block_variance(double [:, :, ::1] arr,
         cnp.npy_intp m, n, o, M, N, O, a, b, c, cnt, step
         double patch_vol_size
         double summ, d, w, sumd, sum_out, x
-        double * mean
         double * cache
-        double * R
         double denom
         double min_d
         cnp.npy_intp BS = B * 2 + 1
 
-    cnt = 0
     min_d = 1e15
     patch_vol_size = (P + P + 1) * (P + P + 1) * (P + P + 1)
-    mean = <double *> malloc(BS * BS * BS * sizeof(double))
     cache = <double *> malloc(BS * BS * BS * sizeof(double))
-    R = <double *> malloc(BS * BS * BS * sizeof(double))
 
     # (i, j, k) coordinates are the center of the static patch
     # copy block in cache
@@ -631,49 +626,18 @@ cdef double block_variance(double [:, :, ::1] arr,
         for n in range(P, BS - P):
             for o in range(P, BS - P):
 
-                summ = 0
-
-                # calculate mean
-                for a in range(- P, P + 1):
-                    for b in range(- P, P + 1):
-                        for c in range(- P, P + 1):
-
-                            # this line takes most of the time! mem access
-                            summ += cache[(B + a) * BS * BS + (B + b) * BS + (B + c)]
-
-                mean[cnt] = summ
-                cnt += 1
-
-    # Calculate low pass filtered volume
-    for m in range(P, BS - P):
-        for n in range(P, BS - P):
-            for o in range(P, BS - P):
-                for a in range(- P, P + 1):
-                    for b in range(- P, P + 1):
-                        for c in range(- P, P + 1):
-
-                            # this line takes most of the time! mem access
-                            R[(m + a) * BS * BS + (n + b) * BS + (o + c)] = cache[(B + a) * BS * BS + (B + b) * BS + (B + c)] - mean[(m + a) * BS * BS + (n + b) * BS + (o + c)]
-
-    # Compute d
-    for m in range(P, BS - P):
-        for n in range(P, BS - P):
-            for o in range(P, BS - P):
-
                 sumd = 0
 
-                for a in range(- P, P + 1):
-                    for b in range(- P, P + 1):
-                        for c in range(- P, P + 1):
+                for a in range(-P, P + 1):
+                    for b in range(-P, P + 1):
+                        for c in range(-P, P + 1):
 
                             # this line takes most of the time! mem access
-                            d = R[(B + a) * BS * BS + (B + b) * BS + (B + c)] - R[(m + a) * BS * BS + (n + b) * BS + (o + c)]
+                            d = cache[(B + a) * BS * BS + (B + b) * BS + (B + c)] - cache[(m + a) * BS * BS + (n + b) * BS + (o + c)]
                             sumd += d * d
 
-                if sumd < min_d:
+                if (sumd < min_d) and (sumd > 0):
                     min_d = sumd
     free(cache)
-    free(mean)
-    free(R)
 
     return min_d
