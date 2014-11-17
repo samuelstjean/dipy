@@ -605,7 +605,7 @@ cdef double block_variance(double [:, :, ::1] arr,
     cdef:
         cnp.npy_intp m, n, o, M, N, O, a, b, c, cnt, step
         double patch_vol_size
-        double summ, d, w, sumd, sum_out, x
+        double summ, d, w, sumd, elem
         double * cache
         double denom
         double min_d
@@ -622,6 +622,7 @@ cdef double block_variance(double [:, :, ::1] arr,
     # Compute the mean of each block
     # (m, n, o) coordinates are the center of the moving patch
     # (a, b, c) run inside both patches
+   
     for m in range(P, BS - P):
         for n in range(P, BS - P):
             for o in range(P, BS - P):
