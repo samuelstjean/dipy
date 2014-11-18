@@ -47,12 +47,8 @@ def nlmeans_3d(arr, mask=None, sigma=None, patch_radius=1,
         raise ValueError('arr needs to be a 3D ndarray')
 
     arr = np.ascontiguousarray(arr, dtype='f8')
-
     arr = add_padding_reflection(arr, block_radius)
-
-
     mask = add_padding_reflection(mask.astype('f8'), block_radius)
-
     arrnlm = _nlmeans_3d(arr, mask, sigma, patch_radius, block_radius, rician)
 
     return remove_padding(arrnlm, block_radius)
@@ -554,8 +550,6 @@ def _non_stat_noise(double [:, :, ::1] arr, double [:, :, ::1] mask,
     cdef:
         cnp.npy_intp i, j, k, I, J, K
         double [:, :, ::1] out = np.zeros_like(arr)
-        double summ = 0
-        double sigm = 0
         cnp.npy_intp P = patch_radius
         cnp.npy_intp B = block_radius
 
@@ -572,7 +566,7 @@ def _non_stat_noise(double [:, :, ::1] arr, double [:, :, ::1] mask,
                     if mask[i, j, k] == 0:
                         continue
 
-                    out[i, j, k] = block_variance(arr, i, j, k, B, P, sigm)
+                    out[i, j, k] = block_variance(arr, i, j, k, B, P)
 
     return np.asarray(out)
 
@@ -582,7 +576,7 @@ def _non_stat_noise(double [:, :, ::1] arr, double [:, :, ::1] mask,
 @cython.cdivision(True)
 cdef double block_variance(double [:, :, ::1] arr,
                            cnp.npy_intp i, cnp.npy_intp j, cnp.npy_intp k,
-                           cnp.npy_intp B, cnp.npy_intp P, double sigma) nogil:
+                           cnp.npy_intp B, cnp.npy_intp P) nogil:
     """ Process the block with center at (i, j, k)
 
     Parameters
@@ -603,12 +597,10 @@ cdef double block_variance(double [:, :, ::1] arr,
     """
 
     cdef:
-        cnp.npy_intp m, n, o, M, N, O, a, b, c, cnt, step
+        cnp.npy_intp m, n, o, a, b, c
         double patch_vol_size
-        double summ, d, w, sumd, elem
+        double d, sumd, mind
         double * cache
-        double denom
-        double min_d
         cnp.npy_intp BS = B * 2 + 1
 
     min_d = 1e15
@@ -622,7 +614,7 @@ cdef double block_variance(double [:, :, ::1] arr,
     # Compute the mean of each block
     # (m, n, o) coordinates are the center of the moving patch
     # (a, b, c) run inside both patches
-   
+
     for m in range(P, BS - P):
         for n in range(P, BS - P):
             for o in range(P, BS - P):

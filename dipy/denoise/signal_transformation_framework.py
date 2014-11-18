@@ -715,10 +715,12 @@ def estimate_sigma(arr):
         arr = arr[..., None]
 
     sigma = np.zeros_like(arr, dtype=np.float32)
-    k = np.ones((3,3,3), dtype=np.int16)
-    
+    k1 = np.ones((3, 3, 3), dtype=np.int16)
+    k2 = np.ones((5, 5, 5), dtype=np.int16)
+
     for i in range(sigma.shape[-1]):
-        sigma[..., i] = non_stat_noise(arr[..., i] - convolve(arr[..., i], k)/np.sum(k))
+        sigma[..., i] = non_stat_noise(arr[..., i] - convolve(arr[..., i], k1)/np.sum(k1))
+        #sigma[..., i] = convolve(temp, k2)/np.sum(k2)
         #print(non_stat_noise(arr[..., i]).shape)
 
     return sigma
