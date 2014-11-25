@@ -756,8 +756,8 @@ def local_standard_deviation(arr):
 
     for i in range(sigma.shape[-1]):
 
-        convolve(arr[..., i], k, output=temp, mode='reflect')/np.sum(k)
-        generic_filter(arr[..., i] - temp, np.std, size=size, mode='reflect', output=sigma[..., i])
+        convolve(arr[..., i], k, output=temp, mode='reflect')
+        generic_filter(arr[..., i] - temp/np.sum(k), np.std, size=size, mode='reflect', output=sigma[..., i])
 
     return sigma
 
