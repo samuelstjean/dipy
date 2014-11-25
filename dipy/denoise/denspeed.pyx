@@ -631,6 +631,7 @@ cdef double block_variance(double [:, :, ::1] arr,
 
                 if (sumd < min_d) and (sumd > 0):
                     min_d = sumd
+    #min_d = cache[9]#i * BS * BS + j * BS + k]
     free(cache)
 
     return min_d
