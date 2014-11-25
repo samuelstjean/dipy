@@ -725,9 +725,12 @@ def estimate_sigma(arr):
         #sigma[..., i] = convolve(temp, k2)/np.sum(k2)
         #print(non_stat_noise(arr[..., i]).shape)
 
+    fwhm = sigma * np.sqrt(8 * np.log(2))
+    sigma_blur = fwhm / np.sqrt(8 * np.log(2))
+
     return sigma
 
-from scipy.ndimage.filters import uniform_filter, generic_filter
+from scipy.ndimage.filters import uniform_filter, generic_filter, gaussian_filter
 
 
 def local_standard_deviation(arr):
