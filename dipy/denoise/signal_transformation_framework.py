@@ -720,7 +720,7 @@ def estimate_sigma(arr):
     ##k2 = np.ones((5, 5, 5), dtype=np.int16)
 
     for i in range(sigma.shape[-1]):
-        temp = convolve(arr[..., i], k, mode='reflect', output=temp)
+        convolve(arr[..., i], k, mode='reflect', output=temp)
         sigma[..., i] = np.sqrt(non_stat_noise(arr[..., i] - temp/np.sum(k)))
         #sigma[..., i] = convolve(temp, k2)/np.sum(k2)
         #print(non_stat_noise(arr[..., i]).shape)
