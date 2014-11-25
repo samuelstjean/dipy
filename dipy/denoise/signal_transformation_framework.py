@@ -715,12 +715,58 @@ def estimate_sigma(arr):
         arr = arr[..., None]
 
     sigma = np.zeros_like(arr, dtype=np.float32)
-    k = np.ones((3, 3, 3), dtype=np.int16)
+    k = np.ones((3, 3, 3))
+    temp = np.zeros_like(sigma[..., 0])
     ##k2 = np.ones((5, 5, 5), dtype=np.int16)
 
     for i in range(sigma.shape[-1]):
-        sigma[..., i] = np.sqrt(non_stat_noise(arr[..., i] - convolve(arr[..., i], k)/np.sum(k)))
+        temp = convolve(arr[..., i], k, mode='reflect', output=temp)
+        sigma[..., i] = np.sqrt(non_stat_noise(arr[..., i] - temp/np.sum(k)))
         #sigma[..., i] = convolve(temp, k2)/np.sum(k2)
         #print(non_stat_noise(arr[..., i]).shape)
 
     return sigma
+
+from scipy.ndimage.filters import uniform_filter, generic_filter
+
+
+def local_standard_deviation(arr):
+    """Standard deviation estimation from local patches
+
+    https://stackoverflow.com/questions/18419871/improving-code-efficiency-standard-deviation-on-sliding-windows
+
+    Parameters
+    ----------
+    arr : 3D or 4D ndarray
+        The array to be estimated
+
+    Returns
+    -------
+    sigma : ndarray
+        map of standard deviation of the noise.
+    """
+
+    if arr.ndim == 3:
+        arr = arr[..., None]
+
+    sigma = np.zeros_like(arr, dtype=np.float32)
+    size = (3, 3, 3)
+    k = np.ones(size)
+    temp = np.zeros_like(sigma[..., 0])
+
+    for i in range(sigma.shape[-1]):
+
+        convolve(arr[..., i], k, output=temp, mode='reflect')/np.sum(k)
+        generic_filter(arr[..., i] - temp, np.std, size=size, mode='reflect', output=sigma[..., i])
+
+    return sigma
+
+
+# def window_stdev(arr):
+
+#     radius = 3
+
+#     c1 = uniform_filter(arr, radius*2, mode='reflect', origin=-radius)
+#     c2 = uniform_filter(arr**2, radius*2, mode='reflect', origin=-radius)
+
+#     return np.sqrt((c2 - c1**2)[:-radius*2+1,:-radius*2+1])
