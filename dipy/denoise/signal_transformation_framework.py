@@ -747,12 +747,12 @@ def _local_standard_deviation(arr):
     conv_out = np.zeros_like(sigma)
 
     convolve(arr, k, output=conv_out, mode='reflect')
-    ##generic_filter(arr - conv_out/np.sum(k), np.std, size=size, mode='reflect', output=temp)
+    generic_filter(arr - conv_out/np.sum(k), np.std, size=size, mode='reflect', output=temp)
 
-    conv_out2 = np.zeros_like(sigma)
-    convolve(arr**2, k, output=conv_out2, mode='reflect')
+    # conv_out2 = np.zeros_like(sigma)
+    # convolve(arr**2, k, output=conv_out2, mode='reflect')
 
-    temp = np.sqrt(conv_out2/np.sum(k) - (conv_out/np.sum(k))**2)
+    # temp = np.sqrt(conv_out2/np.sum(k) - (conv_out/np.sum(k))**2)
     gaussian_filter(temp, blur, mode='reflect', output=sigma)
 
     return sigma
