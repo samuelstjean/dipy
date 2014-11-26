@@ -735,6 +735,29 @@ from scipy.ndimage.filters import uniform_filter, generic_filter, gaussian_filte
 from multiprocessing import Pool
 
 
+def _local_standard_deviation(arr):
+
+    fwhm = 15
+    blur = fwhm / np.sqrt(8 * np.log(2))
+    size = (3, 3, 3)
+
+    k = np.ones(size)
+    sigma = np.zeros_like(arr, dtype=np.float32)
+    temp = np.zeros_like(sigma)
+    conv_out = np.zeros_like(sigma)
+
+    convolve(arr, k, output=conv_out, mode='reflect')
+    ##generic_filter(arr - conv_out/np.sum(k), np.std, size=size, mode='reflect', output=temp)
+
+    conv_out2 = np.zeros_like(sigma)
+    convolve(arr**2, k, output=conv_out2, mode='reflect')
+
+    temp = np.sqrt(conv_out2/np.sum(k) - (conv_out/np.sum(k))**2)
+    gaussian_filter(temp, blur, mode='reflect', output=sigma)
+
+    return sigma
+
+
 def local_standard_deviation(arr, n_cores=None):
     """Standard deviation estimation from local patches
 
@@ -758,30 +781,12 @@ def local_standard_deviation(arr, n_cores=None):
     for i in range(arr.shape[-1]):
         list_arr += [arr[..., i]]
 
-    def _local_standard_deviation(arr):
-
-        fwhm = 15
-        blur = fwhm / np.sqrt(8 * np.log(2))
-        size = (3, 3, 3)
-
-        sigma = np.zeros_like(arr, dtype=np.float32)
-        k = np.ones(size)
-
-        temp = np.zeros_like(sigma)
-        conv_out = np.zeros_like(sigma)
-
-        convolve(arr, k, output=conv_out, mode='reflect')
-        generic_filter(arr - conv_out/np.sum(k), np.std, size=size, mode='reflect', output=temp)
-        gaussian_filter(temp, blur, mode='reflect', output=sigma)
-
-        return sigma
-
     pool = Pool(n_cores)
     results = pool.map(_local_standard_deviation, list_arr)
     pool.close()
     pool.join()
 
-    return np.array(results)
+    return np.rollaxis(np.asarray(results), 0, arr.ndim)
 
 
 # def window_stdev(arr):
