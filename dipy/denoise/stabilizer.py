@@ -128,7 +128,7 @@ def main():
     #sigma_mode=515.
     
     arglist = []
-    arglist += [(data, m_hat, sigma_mode, N) for idx in data, m_hat]
+    arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat, sigma_mode, N)]
     n_cores=None
     pool = Pool(n_cores)
     data_stabilized = pool.map(helper, arglist) 
