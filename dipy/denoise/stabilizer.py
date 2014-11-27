@@ -8,10 +8,12 @@ import numpy as np
 import os
 import argparse
 
-from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno
+from multiprocessing import Pool
+from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno, _chi_to_gauss, _fixed_point_finder
 from scipy.stats import mode
 from scipy.ndimage.filters import gaussian_filter, convolve
 from dipy.denoise.nlmeans import nlmeans
+from dipy.core.ndindex import ndindex
 from skimage.restoration import denoise_bilateral
 
 
@@ -47,6 +49,11 @@ def buildArgsParser():
     return p
 
 
+def helper(data, m_hat, sigma, N):
+    vox = _fixed_point_finder(m_hat[idx], sigma, N)
+    return _chi_to_gauss(data[idx], vox, sigma, N)
+    
+    
 def main():
 
     parser = buildArgsParser()
@@ -107,11 +114,10 @@ def main():
     m_hat = np.zeros_like(data, dtype=np.float32)
     k = np.ones((3, 3, 3))
     for idx in range(data.shape[-1]):
-        m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
-        m_hat[..., idx] = convolve(data[..., idx], k)
+        #m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
+        m_hat[..., idx] = convolve(data[..., idx], k) / np.sum(k)
         # cur_max = np.max(data[..., idx])
-        # m_hat[..., idx] = cur_max * denoise_bilateral(data[..., idx]/cur_max, sigma_range=0.1, sigma_spatial=0.5)
-
+        
    # m_hat = nlmeans(data, sigma_mode, rician=False)
     # m_hat = data
    # m_hat *= mask_noise[..., None]
@@ -120,13 +126,20 @@ def main():
    # m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b1000/dwis.nii.gz').get_data()
     nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
+    
+    arglist = []
+    arglist += [(data, m_hat, sigma_mode, N) for idx in data, m_hat]
+    n_cores=None
+    pool = Pool(n_cores)
+    data_stabilized = pool.map(helper, arglist) 
+    pool.close()
+    pool.join()
 
-    eta = fixed_point_finder(m_hat, sigma_mode, N)
+    #eta = fixed_point_finder(m_hat, sigma_mode, N)
     #eta=m_hat
-    print(data.shape, m_hat.shape, eta.shape)
-    nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta.nii.gz')
-
-    data_stabilized = chi_to_gauss(data, eta, sigma_mode, N)
+    #print(data.shape, m_hat.shape, eta.shape)
+    #nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta.nii.gz')
+    #data_stabilized = chi_to_gauss(data, eta, sigma_mode, N)
 
     print("temps total:", time() - deb)
     nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
