@@ -99,9 +99,10 @@ def _fixed_point_k(eta, m, sigma, N):
 
     return eta - num / denom
 
+
 def marcumq(a, b, M, eps=1e-7):
     
-    if b < 0
+    if a < 0:
         aa = 0.5 * a**2
         bb = 0.5 * b**2
         d = np.exp(-aa)
@@ -114,7 +115,7 @@ def marcumq(a, b, M, eps=1e-7):
         S = copy(delta)
         j = errbnd > 4*eps #& ((1-S) > 8*eps), dtype=np.bool)
     
-        while j # | k <= m:
+        while j: # | k <= m:
             d *= aa/k
             h += d
             f *= bb / (k + M)
@@ -173,11 +174,9 @@ def marcumq(a, b, M, eps=1e-7):
         S += t
         d*= x
         k += 1
-      #  print(np.min(d), np.max(d))
         cond = abs(t/S) > eps
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
-
 
         
 def _marcumq_matlab(a, b, M, eps=1e-7):
