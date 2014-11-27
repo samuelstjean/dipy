@@ -431,6 +431,14 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
+
+def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
+    
+    cdf = 1 - marcumq(eta/sigma, m/sigma, N)
+    np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
+    return _inv_cdf_gauss(cdf, eta, sigma)
+
+
 def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
 
     m = copy(m_hat).astype(np.float32)
@@ -518,6 +526,30 @@ def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
     # return t1
     return out
     #return t1
+
+
+def _fixed_point_finder(m, sigma, N, max_iter=100, eps=1e-4):
+
+    delta = _beta(N) * sigma - 
+
+    if delta > 0:
+        m = _beta(N) * sigma + delta
+            
+    t0 = m
+    t1 = _fixed_point_k(t0, m, sigma, N)
+    cond = True
+
+    while cond:
+
+        t0 = t1
+        t1 = _fixed_point_k(t0, m, sigma, N)
+        n_iter += 1
+        cond = abs(t1 - t0) > eps
+
+    if delta > 0:
+        t1 *= -1.
+            
+    return t1
 
 
 def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
