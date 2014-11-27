@@ -99,7 +99,87 @@ def _fixed_point_k(eta, m, sigma, N):
 
     return eta - num / denom
 
+def marcumq(a, b, M, eps=1e-7):
+    
+    if b < 0
+        aa = 0.5 * a**2
+        bb = 0.5 * b**2
+        d = np.exp(-aa)
+        h = copy(d)
+        f = (bb**M) * np.exp(-bb) / factorial(M)
+        f_err = np.exp(-bb)
+        errbnd = 1 - f_err
+        k = 1
+        delta = f * h
+        S = copy(delta)
+        j = errbnd > 4*eps #& ((1-S) > 8*eps), dtype=np.bool)
+    
+        while j # | k <= m:
+            d *= aa/k
+            h += d
+            f *= bb / (k + M)
+            delta = f * h
+            S += delta
+            f_err *= bb / k
+            errbnd -= f_err
+            j = (errbnd > 4*eps) # & ((1 - S) > 8*eps)
+            k += 1
+    
+        return 1 - S
 
+    if abs(b) < eps:
+        return 1.
+
+    if abs(a) < eps:
+        temp = 0.
+        for k in range(M):
+            temp += b**(2*k) / (2**k * factorial(k))
+
+        return np.exp(-b**2/2) * temp
+
+    z = a * b
+    k = 0
+
+    if a < b:
+
+        s = 1
+        c = 0
+        x = a / b
+        d = copy(x)
+        S = ive(0, z)
+
+        for k in range(1, M):
+
+            S += (d + 1/d) * ive(k, z)
+            d *= x
+
+        k += 1
+
+    else:
+
+        s = -1
+        c = 1
+        x = b / a
+        k = M
+        d = x**M
+        S = 0
+
+    cond = True
+    t = 0
+
+    while cond:
+
+        t = d * ive(k, z)
+        S += t
+        d*= x
+        k += 1
+      #  print(np.min(d), np.max(d))
+        cond = abs(t/S) > eps
+
+    return c + s * np.exp(-0.5 * (a-b)**2) * S
+
+
+        
 def _marcumq_matlab(a, b, M, eps=1e-7):
 
     # if np.all(np.abs(b) < eps):
