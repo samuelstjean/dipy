@@ -57,15 +57,17 @@ def helper(arglist):
     out = np.zeros(data.shape, dtype=np.float32)
     #1/0
     #print(data.shape,data.dtype,m_hat.shape,m_hat.dtype,sigma,N,"1st")
+    print(data.shape)
     for idx in ndindex(data.shape):
         #print(data[idx],m_hat[idx], sigma, N, "2nd")
+        print(idx)
         eta = _fixed_point_finder(m_hat[idx], sigma, N)
         #print(eta,"3rd")
         out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
-    
-    return out 
-       
-    
+
+    return out
+
+
 def main():
 
     parser = buildArgsParser()
@@ -129,7 +131,7 @@ def main():
         #m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
         m_hat[..., idx] = convolve(data[..., idx], k) / np.sum(k)
         # cur_max = np.max(data[..., idx])
-        
+
    # m_hat = nlmeans(data, sigma_mode, rician=False)
     # m_hat = data
    # m_hat *= mask_noise[..., None]
@@ -138,14 +140,14 @@ def main():
    # m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b1000/dwis.nii.gz').get_data()
     nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
-    
+
     #arglist = []
     #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
     n_cores=8
     pool = Pool(processes=n_cores)
     arglist=((data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N)))
     data_stabilized = pool.map(helper, arglist)
-    #print(arglist[0], 'bla') 
+    #print(arglist[0], 'bla')
     #out =  pool.map(helper, arglist)
     #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
     #print(data_stabilized.shape)
