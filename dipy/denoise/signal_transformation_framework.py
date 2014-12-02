@@ -125,6 +125,7 @@ def marcumq(a, b, M, eps=1e-7):
             errbnd -= f_err
             j = (errbnd > 4*eps) # & ((1 - S) > 8*eps)
             k += 1
+            print("in loop", a, b, M, k, errbnd, 4*eps)
 
         return 1 - S
 
@@ -175,7 +176,6 @@ def marcumq(a, b, M, eps=1e-7):
         d*= x
         k += 1
         cond = abs(t/S) > eps
-        print("in loop")
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
 
