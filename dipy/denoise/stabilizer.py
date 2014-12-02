@@ -62,7 +62,7 @@ def helper(arglist):
     for idx in ndindex(data.shape):
         #print(data[idx],m_hat[idx], sigma, N, "2nd")
         #print(idx)
-        eta = m_hat[idx]#_fixed_point_finder(m_hat[idx], sigma, N)
+        eta = _fixed_point_finder(m_hat[idx], sigma, N)
         #print(eta,"3rd")
         out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
         print(idx)
@@ -151,7 +151,7 @@ def main():
 
     pool = Pool(processes=n_cores)
     arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
-    data_stabilized = pool.map_async(helper, arglist, chunksize=chunk_size)
+    data_stabilized = pool.map(helper, arglist, chunksize=chunk_size)
     #print(arglist[0], 'bla')
     #out =  pool.map(helper, arglist)
     #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
