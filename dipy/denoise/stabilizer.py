@@ -64,7 +64,7 @@ def helper(arglist):
         #print(idx)
         eta = m_hat[idx]#_fixed_point_finder(m_hat[idx], sigma, N)
         #print(eta,"3rd")
-        out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
+        out[idx] = eta#_chi_to_gauss(data[idx], eta, sigma, N)
         #print(idx)
     return out
 
