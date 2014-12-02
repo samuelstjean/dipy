@@ -144,16 +144,20 @@ def main():
     #arglist = []
     #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
     n_cores=8
-    pool = Pool(processes=n_cores, maxtasksperchild=1)
+    n = data.shape[-2]
+    nbr_chunks = n_cores ** 2
+    chunk_size = int(np.ceil(n / nbr_chunks))
+
+    pool = Pool(processes=n_cores, chunksize=chunk_size)
     arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
-    data_stabilized = pool.imap(helper, arglist)
+    data_stabilized = pool.map(helper, arglist)
     #print(arglist[0], 'bla')
     #out =  pool.map(helper, arglist)
     #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
     #print(data_stabilized.shape)
     pool.close()
-    pool.join()
     data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
+    pool.join()
     print(data_stabilized.shape)
     #eta = fixed_point_finder(m_hat, sigma_mode, N)
     #print(data.shape, m_hat.shape, eta.shape)
