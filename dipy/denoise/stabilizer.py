@@ -146,9 +146,11 @@ def main():
     #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
     n_cores=8
     n = data.shape[-2]
-    nbr_chunks = n_cores ** 2
+    nbr_chunks = n_cores
     chunk_size = int(np.ceil(n / nbr_chunks))
-    chunk_size=1
+    data = data[..., 0]
+    m_hat = m_hat[..., 0]
+    #chunk_size=1
 
     pool = Pool(processes=n_cores)
     arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
