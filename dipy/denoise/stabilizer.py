@@ -61,8 +61,8 @@ def helper(arglist):
     print(data.shape)
     for idx in ndindex(data.shape):
         #print(data[idx],m_hat[idx], sigma, N, "2nd")
-        #print(idx)
-        eta = _fixed_point_finder(m_hat[idx], sigma, N)
+        print(idx)
+        eta = m_hat#_fixed_point_finder(m_hat[idx], sigma, N)
         #print(eta,"3rd")
         out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
         print(idx)
@@ -121,7 +121,7 @@ def main():
     #sigma_mode = np.load(filename + "_sigma.npy")
 
     sigma_mode, num = mode(sigma, axis=None)
-    sigma_mode=80.#25.62295723
+    sigma_mode=200.#25.62295723
     print("mode of sigma is", sigma_mode, "with nb", num, "median is", np.median(sigma))
     np.save(filename + "_sigma.npy", sigma_mode)
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
