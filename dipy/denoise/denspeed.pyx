@@ -656,8 +656,8 @@ cdef marcumq(double a, double b, int M, double eps=1e-7, int max_iter=10000):
         d = exp(-aa)
         h = exp(-aa)
 
-        for i in range(1, M+1):
-            factorial_M *= i
+        # for i in range(1, M+1):
+        #     factorial_M *= i
 
         f = (bb**M) * exp(-bb) / factorial_M
         f_err = exp(-bb)
