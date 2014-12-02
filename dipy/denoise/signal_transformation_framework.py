@@ -115,7 +115,7 @@ def marcumq(a, b, M, eps=1e-7):
         S = copy(delta)
         j = errbnd > 4*eps #& ((1-S) > 8*eps), dtype=np.bool)
 
-        while j: # | k <= m:
+        while j or k <= m:
             d *= aa/k
             h += d
             f *= bb / (k + M)
@@ -123,9 +123,9 @@ def marcumq(a, b, M, eps=1e-7):
             S += delta
             f_err *= bb / k
             errbnd -= f_err
-            j = (errbnd > 4*eps) # & ((1 - S) > 8*eps)
+            j = errbnd > 4*eps # & ((1 - S) > 8*eps)
             k += 1
-            print("in loop", a, b, M, k, errbnd, 4*eps)
+            print("in loop", a, b, M, k, errbnd, f_err, 4*eps)
 
         return 1 - S
 
