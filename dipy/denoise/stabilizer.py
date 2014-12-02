@@ -144,9 +144,9 @@ def main():
     #arglist = []
     #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
     n_cores=8
-    pool = Pool(processes=n_cores)
-    arglist=((data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N)))
-    data_stabilized = pool.map(helper, arglist)
+    pool = Pool(processes=n_cores, maxtasksperchild=1)
+    arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
+    data_stabilized = pool.imap(helper, arglist)
     #print(arglist[0], 'bla')
     #out =  pool.map(helper, arglist)
     #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
