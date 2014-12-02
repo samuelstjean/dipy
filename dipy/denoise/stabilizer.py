@@ -144,7 +144,7 @@ def main():
 
     #arglist = []
     #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
-    n_cores=8
+    n_cores=1
     n = data.shape[-2]
     nbr_chunks = n_cores
     chunk_size = int(np.ceil(n / nbr_chunks))
