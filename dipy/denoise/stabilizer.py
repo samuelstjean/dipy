@@ -55,6 +55,7 @@ def helper(arglist):
     #print(arglist)
     data, m_hat, sigma, N = arglist
     out = np.zeros(data.shape, dtype=np.float32)
+    return chi_to_gauss(data, m_hat, sigma, N)
     #1/0
     #print(data.shape,data.dtype,m_hat.shape,m_hat.dtype,sigma,N,"1st")
     print(data.shape)
@@ -63,7 +64,7 @@ def helper(arglist):
         #print(idx)
         eta = m_hat[idx]#_fixed_point_finder(m_hat[idx], sigma, N)
         #print(eta,"3rd")
-        out[idx] = chi_to_gauss(data, eta, sigma, N) #_chi_to_gauss(data[idx], eta, sigma, N)
+        out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
 
     return out
 
