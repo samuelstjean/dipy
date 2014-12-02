@@ -148,9 +148,9 @@ def main():
     nbr_chunks = n_cores ** 2
     chunk_size = int(np.ceil(n / nbr_chunks))
 
-    pool = Pool(processes=n_cores, chunksize=chunk_size)
+    pool = Pool(processes=n_cores)
     arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
-    data_stabilized = pool.map(helper, arglist)
+    data_stabilized = pool.map(helper, arglist, chunksize=chunk_size)
     #print(arglist[0], 'bla')
     #out =  pool.map(helper, arglist)
     #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
