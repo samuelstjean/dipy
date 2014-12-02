@@ -100,7 +100,7 @@ def _fixed_point_k(eta, m, sigma, N):
     return eta - num / denom
 
 
-def marcumq(a, b, M, eps=1e-7):
+def marcumq(a, b, M, eps=1e-7, max_iter=10000):
 
     if abs(b) < eps:
         return 1.
@@ -123,7 +123,7 @@ def marcumq(a, b, M, eps=1e-7):
         k = 1
         delta = f * h
         S = copy(delta)
-        j = (errbnd > 4*eps) & ((1-S) > 8*eps)
+        j = (errbnd > 4*eps) & ((1 - S) > 8*eps)
 
         while j or k <= M:
             d *= aa/k
@@ -135,7 +135,9 @@ def marcumq(a, b, M, eps=1e-7):
             errbnd -= f_err
             j = (errbnd > 4*eps)  & ((1 - S) > 8*eps)
             k += 1
-            print("in loop", a, b, M, k, errbnd, f_err, 1 - S)
+            #print("in loop", a, b, M, k, errbnd, f_err, 1 - S)
+            if (k > max_iter):
+                break
 
         return 1 - S
 
@@ -176,6 +178,9 @@ def marcumq(a, b, M, eps=1e-7):
         d*= x
         k += 1
         cond = abs(t/S) > eps
+
+        if k > max_iter:
+            break
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
 
