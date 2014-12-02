@@ -9,6 +9,8 @@ import os
 import argparse
 
 from multiprocessing import Pool
+from itertools import repeat
+
 from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno, _chi_to_gauss, _fixed_point_finder
 from scipy.stats import mode
 from scipy.ndimage.filters import gaussian_filter, convolve
@@ -49,10 +51,20 @@ def buildArgsParser():
     return p
 
 
-def helper(data, m_hat, sigma, N):
-    vox = _fixed_point_finder(m_hat[idx], sigma, N)
-    return _chi_to_gauss(data[idx], vox, sigma, N)
+def helper(arglist):
+    #print(arglist)
+    data, m_hat, sigma, N = arglist
+    out = np.zeros(data.shape, dtype=np.float32)
+    #1/0
+    #print(data.shape,data.dtype,m_hat.shape,m_hat.dtype,sigma,N,"1st")
+    for idx in ndindex(data.shape):
+        #print(data[idx],m_hat[idx], sigma, N, "2nd")
+        eta = _fixed_point_finder(m_hat[idx], sigma, N)
+        #print(eta,"3rd")
+        out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
     
+    return out 
+       
     
 def main():
 
@@ -98,7 +110,7 @@ def main():
 
     for idx in range(data.shape[-2]):
         print("Now processing slice", idx+1, "out of", data.shape[-2])
-        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
+        ##sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
 
     print(sigma)
     print(np.percentile(sigma, 10.),  np.percentile(sigma, 90.))
@@ -127,16 +139,21 @@ def main():
     nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
     
-    arglist = []
-    arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat, sigma_mode, N)]
-    n_cores=None
-    pool = Pool(n_cores)
-    data_stabilized = pool.map(helper, arglist) 
+    #arglist = []
+    #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
+    n_cores=8
+    pool = Pool(processes=n_cores)
+    arglist=((data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N)))
+    data_stabilized = pool.map(helper, arglist)
+    #print(arglist[0], 'bla') 
+    #out =  pool.map(helper, arglist)
+    #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
+    #print(data_stabilized.shape)
     pool.close()
     pool.join()
-
+    data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
+    print(data_stabilized.shape)
     #eta = fixed_point_finder(m_hat, sigma_mode, N)
-    #eta=m_hat
     #print(data.shape, m_hat.shape, eta.shape)
     #nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta.nii.gz')
     #data_stabilized = chi_to_gauss(data, eta, sigma_mode, N)

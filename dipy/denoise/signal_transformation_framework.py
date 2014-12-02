@@ -434,7 +434,7 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
     
     cdf = 1 - marcumq(eta/sigma, m/sigma, N)
-    np.clip(cdf, alpha/2, 1 - alpha/2, out=cdf)
+    cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
@@ -527,16 +527,21 @@ def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
     #return t1
 
 
-def _fixed_point_finder(m, sigma, N, max_iter=100, eps=1e-4):
+def _fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
 
-    delta = _beta(N) * sigma - 
+    delta = _beta(N) * sigma - m_hat
 
-    if delta > 0:
+    if delta == 0:
+        return 0
+    elif delta > 0:
         m = _beta(N) * sigma + delta
+    else:
+        m = m_hat
             
     t0 = m
     t1 = _fixed_point_k(t0, m, sigma, N)
     cond = True
+    n_iter = 0
 
     while cond:
 
@@ -544,9 +549,12 @@ def _fixed_point_finder(m, sigma, N, max_iter=100, eps=1e-4):
         t1 = _fixed_point_k(t0, m, sigma, N)
         n_iter += 1
         cond = abs(t1 - t0) > eps
+        
+        if n_iter > max_iter:
+            break
 
     if delta > 0:
-        t1 *= -1.
+        return -t1
             
     return t1
 
