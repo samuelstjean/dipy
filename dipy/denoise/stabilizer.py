@@ -55,7 +55,7 @@ def helper(arglist):
     #print(arglist)
     data, m_hat, sigma, N = arglist
     out = np.zeros(data.shape, dtype=np.float32)
-    return chi_to_gauss(data, m_hat, sigma, N)
+    #return chi_to_gauss(data, m_hat, sigma, N)
     #1/0
     #print(data.shape,data.dtype,m_hat.shape,m_hat.dtype,sigma,N,"1st")
     print(data.shape)
