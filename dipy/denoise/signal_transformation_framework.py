@@ -101,7 +101,7 @@ def _fixed_point_k(eta, m, sigma, N):
 
 
 def marcumq(a, b, M, eps=1e-7):
-    
+
     if a < 0:
         aa = 0.5 * a**2
         bb = 0.5 * b**2
@@ -114,7 +114,7 @@ def marcumq(a, b, M, eps=1e-7):
         delta = f * h
         S = copy(delta)
         j = errbnd > 4*eps #& ((1-S) > 8*eps), dtype=np.bool)
-    
+
         while j: # | k <= m:
             d *= aa/k
             h += d
@@ -125,7 +125,7 @@ def marcumq(a, b, M, eps=1e-7):
             errbnd -= f_err
             j = (errbnd > 4*eps) # & ((1 - S) > 8*eps)
             k += 1
-    
+
         return 1 - S
 
     if abs(b) < eps:
@@ -175,10 +175,11 @@ def marcumq(a, b, M, eps=1e-7):
         d*= x
         k += 1
         cond = abs(t/S) > eps
+        print("in loop")
 
     return c + s * np.exp(-0.5 * (a-b)**2) * S
 
-        
+
 def _marcumq_matlab(a, b, M, eps=1e-7):
 
     # if np.all(np.abs(b) < eps):
@@ -432,7 +433,7 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 
 
 def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
-    
+
     cdf = 1 - marcumq(eta/sigma, m/sigma, N)
     cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
     return _inv_cdf_gauss(cdf, eta, sigma)
@@ -537,7 +538,7 @@ def _fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
         m = _beta(N) * sigma + delta
     else:
         m = m_hat
-            
+
     t0 = m
     t1 = _fixed_point_k(t0, m, sigma, N)
     cond = True
@@ -549,13 +550,13 @@ def _fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
         t1 = _fixed_point_k(t0, m, sigma, N)
         n_iter += 1
         cond = abs(t1 - t0) > eps
-        
+
         if n_iter > max_iter:
             break
 
     if delta > 0:
         return -t1
-            
+
     return t1
 
 
