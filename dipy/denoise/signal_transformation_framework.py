@@ -102,6 +102,16 @@ def _fixed_point_k(eta, m, sigma, N):
 
 def marcumq(a, b, M, eps=1e-7):
 
+    if abs(b) < eps:
+        return 1.
+
+    if abs(a) < eps:
+        temp = 0.
+        for k in range(M):
+            temp += b**(2*k) / (2**k * factorial(k))
+
+        return np.exp(-b**2/2) * temp
+
     if a < 0:
         aa = 0.5 * a**2
         bb = 0.5 * b**2
@@ -113,7 +123,7 @@ def marcumq(a, b, M, eps=1e-7):
         k = 1
         delta = f * h
         S = copy(delta)
-        j = errbnd > 4*eps #& ((1-S) > 8*eps), dtype=np.bool)
+        j = (errbnd > 4*eps) & ((1-S) > 8*eps)
 
         while j or k <= M:
             d *= aa/k
@@ -123,21 +133,11 @@ def marcumq(a, b, M, eps=1e-7):
             S += delta
             f_err *= bb / k
             errbnd -= f_err
-            j = errbnd > 4*eps # & ((1 - S) > 8*eps)
+            j = (errbnd > 4*eps)  & ((1 - S) > 8*eps)
             k += 1
-            print("in loop", a, b, M, k, errbnd, f_err, 4*eps)
+            print("in loop", a, b, M, k, errbnd, f_err, 1 - S)
 
         return 1 - S
-
-    if abs(b) < eps:
-        return 1.
-
-    if abs(a) < eps:
-        temp = 0.
-        for k in range(M):
-            temp += b**(2*k) / (2**k * factorial(k))
-
-        return np.exp(-b**2/2) * temp
 
     z = a * b
     k = 0
