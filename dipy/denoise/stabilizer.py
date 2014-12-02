@@ -144,7 +144,7 @@ def main():
 
     #arglist = []
     #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
-    n_cores=1
+    n_cores=8
     n = data.shape[-2]
     nbr_chunks = n_cores
     chunk_size = int(np.ceil(n / nbr_chunks))
@@ -154,7 +154,7 @@ def main():
 
     pool = Pool(processes=n_cores)
     arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
-    data_stabilized = map(helper, arglist)#pool.map(helper, arglist, chunksize=chunk_size)
+    data_stabilized = pool.map(helper, arglist, chunksize=chunk_size)
     #print(arglist[0], 'bla')
     #out =  pool.map(helper, arglist)
     #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
