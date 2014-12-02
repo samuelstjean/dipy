@@ -115,7 +115,7 @@ def marcumq(a, b, M, eps=1e-7):
         S = copy(delta)
         j = errbnd > 4*eps #& ((1-S) > 8*eps), dtype=np.bool)
 
-        while j or k <= m:
+        while j or k <= M:
             d *= aa/k
             h += d
             f *= bb / (k + M)
