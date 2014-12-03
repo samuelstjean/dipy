@@ -6,7 +6,7 @@ cimport cython
 from cython.parallel import parallel, prange
 
 from dipy.denoise.signal_transformation_framework import _inv_cdf_gauss
-from scilpy.denoising.hyp1f1 import hyp1f1
+from scilpy.denoising.hyp1f1 import hyp1f1_pas_vec as hyp1f1
 
 from libc.math cimport sqrt, exp
 from libc.stdlib cimport malloc, free
@@ -768,7 +768,7 @@ cdef _fixed_point_g(double eta, double m, double sigma, int N):
 
 @cython.cdivision(True)
 cdef _fixed_point_k(eta, m, sigma, N):
-    return 1.
+
     cdef:
         double fpg, num, denom
         double eta2sigma = -eta**2/(2*sigma**2)
