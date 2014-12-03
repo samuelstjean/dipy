@@ -651,34 +651,34 @@ cdef marcumq(double a, double b, int M, double eps=1e-7, int max_iter=10000):
         double aa, bb, d, h, f, f_err, errbnd, delta, S, factorial_M = 1
         int i, j, k
 
-        aa = 0.5 * a**2
-        bb = 0.5 * b**2
-        d = exp(-aa)
-        h = exp(-aa)
+    aa = 0.5 * a**2
+    bb = 0.5 * b**2
+    d = exp(-aa)
+    h = exp(-aa)
 
-        # for i in range(1, M+1):
-        #     factorial_M *= i
+    for i in range(1, M+1):
+        factorial_M *= i
 
-        f = (bb**M) * exp(-bb) / factorial_M
-        f_err = exp(-bb)
-        errbnd = 1. - f_err
-        k = 1
+    f = (bb**M) * exp(-bb) / factorial_M
+    f_err = exp(-bb)
+    errbnd = 1. - f_err
+    k = 1
+    delta = f * h
+    S = f * h
+    j = (errbnd > 4*eps) && ((1 - S) > 8*eps)
+
+    while j || k <= M:
+        d *= aa/k
+        h += d
+        f *= bb / (k + M)
         delta = f * h
-        S = f * h
-        j = (errbnd > 4*eps) && ((1 - S) > 8*eps)
+        S += delta
+        f_err *= bb / k
+        errbnd -= f_err
+        j = (errbnd > 4*eps) & ((1 - S) > 8*eps)
+        k += 1
 
-        while j || k <= M:
-            d *= aa/k
-            h += d
-            f *= bb / (k + M)
-            delta = f * h
-            S += delta
-            f_err *= bb / k
-            errbnd -= f_err
-            j = (errbnd > 4*eps) & ((1 - S) > 8*eps)
-            k += 1
+        if (k > max_iter):
+            break
 
-            if (k > max_iter):
-                break
-
-        return 1 - S
+    return 1 - S
