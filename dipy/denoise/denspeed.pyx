@@ -645,7 +645,7 @@ cdef factorial(int N):
     return N * factorial(N-1)
 
 
-cdef marcumq(double a, double b, int M, double eps=1e-7, int max_iter=10000):
+cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=10000):
 
     cdef:
         double aa, bb, d, h, f, f_err, errbnd, delta, S, factorial_M = 1
