@@ -5,6 +5,8 @@ cimport numpy as cnp
 cimport cython
 from cython.parallel import parallel, prange
 
+from dipy.denoise.signal_transformation_framework import _inv_cdf_gauss
+
 from libc.math cimport sqrt, exp
 from libc.stdlib cimport malloc, free
 from libc.string cimport memcpy
@@ -637,6 +639,13 @@ cdef double block_variance(double [:, :, ::1] arr,
     return min_d
 
 
+def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
+
+    cdf = 1 - marcumq_cython(eta/sigma, m/sigma, N)
+    cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
+    return _inv_cdf_gauss(cdf, eta, sigma)
+
+
 cdef factorial(int N):
 
     if N == 1:
@@ -645,7 +654,7 @@ cdef factorial(int N):
     return N * factorial(N-1)
 
 
-cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=10000):
+cdef marcumq(double a, double b, int M, double eps=1e-7, int max_iter=10000):
 
     cdef:
         double aa, bb, d, h, f, f_err, errbnd, delta, S, factorial_M = 1
