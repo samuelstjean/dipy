@@ -139,7 +139,7 @@ def main():
         # cur_max = np.max(data[..., idx])
 
    # m_hat = nlmeans(data, sigma_mode, rician=False)
-    # m_hat = data
+    m_hat = data
    # m_hat *= mask_noise[..., None]
 
 
