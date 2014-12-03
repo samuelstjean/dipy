@@ -667,7 +667,7 @@ cdef marcumq(double a, double b, int M, double eps=1e-7, int max_iter=10000):
     S = f * h
     j = (errbnd > 4*eps) && ((1 - S) > 8*eps)
 
-    while j || k <= M:
+    while j :#|| k <= M:
         d *= aa/k
         h += d
         f *= bb / (k + M)
