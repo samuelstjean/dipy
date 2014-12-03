@@ -711,7 +711,7 @@ cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, do
     t1 = _fixed_point_k(t0, m, sigma, N)
     cond = True
     n_iter = 0
-
+    return t1
     while cond:
 
         t0 = t1
@@ -763,7 +763,6 @@ cdef beta(int N):
 
 @cython.cdivision(True)
 cdef _fixed_point_g(double eta, double m, double sigma, int N):
-    return 1.
     return sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
 
 
