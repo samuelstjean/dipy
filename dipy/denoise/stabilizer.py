@@ -62,7 +62,7 @@ def helper(arglist):
     #1/0
     #print(data.shape,data.dtype,m_hat.shape,m_hat.dtype,sigma,N,"1st")
     print(data.shape)
-    return data
+
     for idx in ndindex(data.shape):
         #print(data[idx],m_hat[idx], sigma, N, "2nd")
         #print(idx)
@@ -174,7 +174,7 @@ def main():
     #data_stabilized = chi_to_gauss(data, eta, sigma_mode, N)
 
     print("temps total:", time() - deb)
-    nib.save(nib.Nifti1Image(data.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
+    nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
 
     print("Detected noise std was :", sigma_mode)
 
