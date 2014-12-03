@@ -642,15 +642,13 @@ cdef double block_variance(double [:, :, ::1] arr,
 
 def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 
-    with nogil:
-        cdf = 1 - marcumq_cython(eta/sigma, m/sigma, N)
-
+    cdf = 1 - marcumq_cython(eta/sigma, m/sigma, N)
     cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
 @cython.cdivision(True)
-cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=10000) nogil:
+cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=10000):
 
     cdef:
         double aa, bb, d, h, f, f_err, errbnd, delta, S, factorial_M = 1
@@ -694,7 +692,7 @@ def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
 
 
 @cython.cdivision(True)
-cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, double eps=1e-4) nogil:
+cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, double eps=1e-4):
 
     cdef:
         double delta, m, t0, t1
@@ -731,7 +729,7 @@ cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, do
 
 
 @cython.cdivision(False)
-cdef beta(int N) nogil:
+cdef beta(int N):
     #return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
 
     if N == 1:
@@ -764,12 +762,12 @@ cdef beta(int N) nogil:
 
 
 @cython.cdivision(True)
-cdef _fixed_point_g(double eta, double m, double sigma, int N) nogil:
+cdef _fixed_point_g(double eta, double m, double sigma, int N):
     return sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
 
 
 @cython.cdivision(True)
-cdef _fixed_point_k(eta, m, sigma, N) nogil:
+cdef _fixed_point_k(eta, m, sigma, N):
 
     cdef:
         double fpg, num, denom
@@ -786,5 +784,5 @@ cdef _fixed_point_k(eta, m, sigma, N) nogil:
 
 
 @cython.cdivision(True)
-cdef _xi(double eta, double sigma, int N) nogil:
+cdef _xi(double eta, double sigma, int N):
     return 2*N + eta**2/sigma**2 - (beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
