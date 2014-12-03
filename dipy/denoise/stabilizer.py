@@ -174,7 +174,7 @@ def main():
     #data_stabilized = chi_to_gauss(data, eta, sigma_mode, N)
 
     print("temps total:", time() - deb)
-    nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
+    nib.save(nib.Nifti1Image(data.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
 
     print("Detected noise std was :", sigma_mode)
 
