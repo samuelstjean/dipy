@@ -11,7 +11,9 @@ import argparse
 from multiprocessing import Pool
 from itertools import repeat
 
-from dipy.denoise.signal_transformation_framework import chi_to_gauss, fixed_point_finder, piesno, _chi_to_gauss, _fixed_point_finder
+from dipy.denoise.signal_transformation_framework import fixed_point_finder, piesno, _chi_to_gauss, _fixed_point_finder
+from dipy.denoise.denspeed import _chi_to_gauss
+
 from scipy.stats import mode
 from scipy.ndimage.filters import gaussian_filter, convolve
 from dipy.denoise.nlmeans import nlmeans

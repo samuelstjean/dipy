@@ -11,7 +11,7 @@ from scipy.stats import mode
 from scipy.linalg import svd
 
 from dipy.core.ndindex import ndindex
-from dipy.denoise.denspeed import marcumq_cython
+# from dipy.denoise.denspeed import marcumq_cython
 
 from scilpy.denoising.hyp1f1 import hyp1f1
 
@@ -438,11 +438,11 @@ def chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 
 
 
-def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
+# def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 
-    cdf = 1 - marcumq_cython(eta/sigma, m/sigma, N)
-    cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
-    return _inv_cdf_gauss(cdf, eta, sigma)
+#     cdf = 1 - marcumq_cython(eta/sigma, m/sigma, N)
+#     cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
+#     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
 def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
