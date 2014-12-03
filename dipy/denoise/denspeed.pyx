@@ -6,7 +6,7 @@ cimport cython
 from cython.parallel import parallel, prange
 
 from dipy.denoise.signal_transformation_framework import _inv_cdf_gauss
-from scilpy.denoising.hyp1f1 import hyp1f1
+from cython_gsl cimport gsl_sf_hyperg_1F1 as hyp1f1
 
 from libc.math cimport sqrt, exp
 from libc.stdlib cimport malloc, free
