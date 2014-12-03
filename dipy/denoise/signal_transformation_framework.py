@@ -123,7 +123,7 @@ def marcumq(a, b, M, eps=1e-7, max_iter=10000):
         k = 1
         delta = f * h
         S = copy(delta)
-        j = (errbnd > 4*eps) & ((1 - S) > 8*eps)
+        j = (errbnd > 4*eps) and ((1 - S) > 8*eps)
 
         while j or k <= M:
             d *= aa/k
@@ -133,7 +133,7 @@ def marcumq(a, b, M, eps=1e-7, max_iter=10000):
             S += delta
             f_err *= bb / k
             errbnd -= f_err
-            j = (errbnd > 4*eps)  & ((1 - S) > 8*eps)
+            j = (errbnd > 4*eps) and ((1 - S) > 8*eps)
             k += 1
             #print("in loop", a, b, M, k, errbnd, f_err, 1 - S)
             if (k > max_iter):
@@ -175,7 +175,7 @@ def marcumq(a, b, M, eps=1e-7, max_iter=10000):
 
         t = d * ive(k, z)
         S += t
-        d*= x
+        d *= x
         k += 1
         cond = abs(t/S) > eps
 
