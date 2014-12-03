@@ -706,7 +706,7 @@ cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, do
         m = beta(N) * sigma + delta
     else:
         m = m_hat
-    return 1.
+
     t0 = m
     t1 = _fixed_point_k(t0, m, sigma, N)
     cond = True
@@ -757,8 +757,8 @@ cdef beta(int N):
     elif N == 64:
         return 11.2916332015
     else:
-            raise NotImplementedError("Number of coils " + N + "not supported! \
-                Add it using the formula in dipy.denoise.denspeed.beta")
+        raise NotImplementedError("Number of coils " + N + " not supported! \
+            Add it using the formula in dipy.denoise.denspeed.beta")
 
 
 @cython.cdivision(True)
@@ -768,7 +768,7 @@ cdef _fixed_point_g(double eta, double m, double sigma, int N):
 
 @cython.cdivision(True)
 cdef _fixed_point_k(eta, m, sigma, N):
-
+    return 1.
     cdef:
         double fpg, num, denom
         double eta2sigma = -eta**2/(2*sigma**2)
