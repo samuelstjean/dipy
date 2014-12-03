@@ -6,7 +6,7 @@ cimport cython
 from cython.parallel import parallel, prange
 
 from dipy.denoise.signal_transformation_framework import _inv_cdf_gauss
-from cython_gsl cimport gsl_sf_hyperg_1F1
+from scilpy.denoising.hyp1f1 import hyp1f1
 
 from libc.math cimport sqrt, exp
 from libc.stdlib cimport malloc, free
@@ -786,10 +786,3 @@ cdef _fixed_point_k(eta, m, sigma, N):
 @cython.cdivision(True)
 cdef _xi(double eta, double sigma, int N):
     return 2*N + eta**2/sigma**2 - (beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
-
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-def hyp1f1(a, b, x):
-
-    return gsl_sf_hyperg_1F1(a, b, x)
