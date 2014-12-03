@@ -706,12 +706,12 @@ cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, do
         m = beta(N) * sigma + delta
     else:
         m = m_hat
-
+    return 1.
     t0 = m
     t1 = _fixed_point_k(t0, m, sigma, N)
     cond = True
     n_iter = 0
-    return t1
+
     while cond:
 
         t0 = t1
