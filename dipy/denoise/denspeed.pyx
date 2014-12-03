@@ -742,7 +742,7 @@ cdef beta(int N):
     for i in range(0, 2*N, 2):
         fac2N *= i
 
-    return sqrtpi2 * (fac2N/(2**(N-1) * factN))
+    return sqrtpi2 * (fac2N/(2**(N-1) * facN))
 
 
 cdef _fixed_point_g(double eta, double m, double sigma, int N):
