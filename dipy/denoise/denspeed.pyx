@@ -757,8 +757,8 @@ cdef beta(int N):
     elif N == 64:
         return 11.2916332015
     else:
-        with gil:
-            raise NotImplementedError("Number of coils " + N + "not supported!")
+            raise NotImplementedError("Number of coils " + N + "not supported! \
+                Add it using the formula in dipy.denoise.denspeed.beta")
 
 
 @cython.cdivision(True)
