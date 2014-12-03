@@ -11,8 +11,8 @@ import argparse
 from multiprocessing import Pool
 from itertools import repeat
 
-from dipy.denoise.signal_transformation_framework import fixed_point_finder, piesno, _fixed_point_finder
-from dipy.denoise.denspeed import _chi_to_gauss
+from dipy.denoise.signal_transformation_framework import piesno#, _fixed_point_finder, _chi_to_gauss, fixed_point_finder
+from dipy.denoise.denspeed import _chi_to_gauss, fixed_point_finder
 
 from scipy.stats import mode
 from scipy.ndimage.filters import gaussian_filter, convolve
@@ -64,8 +64,8 @@ def helper(arglist):
     for idx in ndindex(data.shape):
         #print(data[idx],m_hat[idx], sigma, N, "2nd")
         #print(idx)
-        eta = m_hat[idx]
-        #eta = _fixed_point_finder(m_hat[idx], sigma, N)
+        #eta = m_hat[idx]
+        eta = fixed_point_finder(m_hat[idx], sigma, N)
         #print(eta,"3rd")
         out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
         #print(idx)

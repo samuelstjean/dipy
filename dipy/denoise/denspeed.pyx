@@ -6,6 +6,7 @@ cimport cython
 from cython.parallel import parallel, prange
 
 from dipy.denoise.signal_transformation_framework import _inv_cdf_gauss
+from scilpy.denoising.hyp1f1 import hyp1f1
 
 from libc.math cimport sqrt, exp
 from libc.stdlib cimport malloc, free
@@ -646,14 +647,6 @@ def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-cdef factorial(int N):
-
-    if N == 1:
-        return 1
-
-    return N * factorial(N-1)
-
-
 cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=10000):
 
     cdef:
@@ -691,3 +684,85 @@ cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=100
             break
 
     return 1 - S
+
+
+def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
+    return _fixed_point_finder(m_hat, sigma, N, max_iter, eps)
+
+
+cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, double eps=1e-4):
+
+    cdef:
+        double delta, m, t0, t1
+        int cond, n_iter
+
+    delta = beta(N) * sigma - m_hat
+
+    if delta == 0:
+        return 0
+    elif delta > 0:
+        m = beta(N) * sigma + delta
+    else:
+        m = m_hat
+
+    t0 = m
+    t1 = _fixed_point_k(t0, m, sigma, N)
+    cond = True
+    n_iter = 0
+
+    while cond:
+
+        t0 = t1
+        t1 = _fixed_point_k(t0, m, sigma, N)
+        n_iter += 1
+        cond = abs(t1 - t0) > eps
+
+        if n_iter > max_iter:
+            break
+
+    if delta > 0:
+        return -t1
+
+    return t1
+
+
+cdef beta(int N):
+    #return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
+
+    cdef:
+        double facN = 1, fac2N = 1
+        double sqrtpi2 = 1.2533141373155001
+        int i
+
+    # factorial(N-1)
+    for i in range(N):
+        facN *= i
+
+    # factorial2(2*N-1)
+    for i in range(0, 2*N, 2):
+        fac2N *= i
+
+    return sqrtpi2 * (fac2N/(2**(N-1) * factN))
+
+
+cdef _fixed_point_g(double eta, double m, double sigma, int N):
+    return sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
+
+
+cdef _fixed_point_k(eta, m, sigma, N):
+
+    cdef:
+        double fpg, num, denom
+
+    fpg = _fixed_point_g(eta, m, sigma, N)
+    num = fpg * (fpg - eta)
+
+    denom = eta * (1 - ((beta(N)**2)/(2*N)) *
+                   hyp1f1(-0.5, N, -eta**2/(2*sigma**2)) *
+                   hyp1f1(0.5, N+1, -eta**2/(2*sigma**2))) - fpg
+
+    return eta - num / denom
+
+
+cdef _xi(double eta, double sigma, int N):
+    return 2*N + eta**2/sigma**2 - (beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
