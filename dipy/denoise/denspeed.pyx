@@ -642,12 +642,15 @@ cdef double block_variance(double [:, :, ::1] arr,
 
 def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 
-    cdf = 1 - marcumq_cython(eta/sigma, m/sigma, N)
+    with nogil:
+        cdf = 1 - marcumq_cython(eta/sigma, m/sigma, N)
+
     cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
     return _inv_cdf_gauss(cdf, eta, sigma)
 
 
-cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=10000):
+@cython.cdivision(True)
+cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=10000) nogil:
 
     cdef:
         double aa, bb, d, h, f, f_err, errbnd, delta, S, factorial_M = 1
@@ -690,7 +693,8 @@ def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
     return _fixed_point_finder(m_hat, sigma, N, max_iter, eps)
 
 
-cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, double eps=1e-4):
+@cython.cdivision(True)
+cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, double eps=1e-4) nogil:
 
     cdef:
         double delta, m, t0, t1
@@ -726,43 +730,61 @@ cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, do
     return t1
 
 
-cdef beta(int N):
+@cython.cdivision(False)
+cdef beta(int N) nogil:
     #return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
 
-    cdef:
-        double facN = 1, fac2N = 1
-        double sqrtpi2 = 1.2533141373155001
-        int i
+    if N == 1:
+        return 1.25331413732
+    elif N == 2:
+        return 1.87997120597
+    elif N == 4:
+        return 2.74162467538
+    elif N == 6:
+        return 3.39276053578
+    elif N == 8:
+        return 3.93802562189
+    elif N == 12:
+        return 4.84822789808
+    elif N == 16:
+        return 5.61283938922
+    elif N == 20:
+        return 6.28515420794
+    elif N == 24:
+        return 6.89221524065
+    elif N == 36:
+        return 8.45587062694
+    elif N == 48:
+        return 9.77247710766
+    elif N == 64:
+        return 11.2916332015
+    else:
+        with gil:
+            raise NotImplementedError("Number of coils " + N + "not supported!")
 
-    # factorial(N-1)
-    for i in range(N):
-        facN *= i
 
-    # factorial2(2*N-1)
-    for i in range(0, 2*N, 2):
-        fac2N *= i
-
-    return sqrtpi2 * (fac2N/(2**(N-1) * facN))
-
-
-cdef _fixed_point_g(double eta, double m, double sigma, int N):
+@cython.cdivision(True)
+cdef _fixed_point_g(double eta, double m, double sigma, int N) nogil:
     return sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
 
 
-cdef _fixed_point_k(eta, m, sigma, N):
+@cython.cdivision(True)
+cdef _fixed_point_k(eta, m, sigma, N) nogil:
 
     cdef:
         double fpg, num, denom
+        double eta2sigma = -eta**2/(2*sigma**2)
 
     fpg = _fixed_point_g(eta, m, sigma, N)
     num = fpg * (fpg - eta)
 
     denom = eta * (1 - ((beta(N)**2)/(2*N)) *
-                   hyp1f1(-0.5, N, -eta**2/(2*sigma**2)) *
-                   hyp1f1(0.5, N+1, -eta**2/(2*sigma**2))) - fpg
+                   hyp1f1(-0.5, N, eta2sigma) *
+                   hyp1f1(0.5, N+1, eta2sigma)) - fpg
 
     return eta - num / denom
 
 
-cdef _xi(double eta, double sigma, int N):
+@cython.cdivision(True)
+cdef _xi(double eta, double sigma, int N) nogil:
     return 2*N + eta**2/sigma**2 - (beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
