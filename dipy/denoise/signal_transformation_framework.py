@@ -913,13 +913,3 @@ def local_standard_deviation(arr, n_cores=None):
     pool.join()
 
     return np.rollaxis(np.asarray(results), 0, arr.ndim)
-
-
-# def window_stdev(arr):
-
-#     radius = 3
-
-#     c1 = uniform_filter(arr, radius*2, mode='reflect', origin=-radius)
-#     c2 = uniform_filter(arr**2, radius*2, mode='reflect', origin=-radius)
-
-#     return np.sqrt((c2 - c1**2)[:-radius*2+1,:-radius*2+1])

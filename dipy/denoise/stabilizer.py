@@ -62,6 +62,7 @@ def helper(arglist):
     #1/0
     #print(data.shape,data.dtype,m_hat.shape,m_hat.dtype,sigma,N,"1st")
     print(data.shape)
+    return data
     for idx in ndindex(data.shape):
         #print(data[idx],m_hat[idx], sigma, N, "2nd")
         #print(idx)

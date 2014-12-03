@@ -651,19 +651,19 @@ def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7, eps=1e-7):
 cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=10000):
 
     cdef:
-        double aa, bb, d, h, f, f_err, errbnd, delta, S, factorial_M = 1
+        double a2, b2, d, h, f, f_err, errbnd, delta, S, factorial_M = 1
         int i, j, k
 
-    aa = 0.5 * a**2
-    bb = 0.5 * b**2
-    d = exp(-aa)
-    h = exp(-aa)
+    a2 = 0.5 * a**2
+    b2 = 0.5 * b**2
+    d = exp(-a2)
+    h = exp(-a2)
 
     for i in range(1, M+1):
         factorial_M *= i
 
-    f = (bb**M) * exp(-bb) / factorial_M
-    f_err = exp(-bb)
+    f = (b2**M) * exp(-b2) / factorial_M
+    f_err = exp(-b2)
     errbnd = 1. - f_err
     k = 1
     delta = f * h
@@ -671,12 +671,12 @@ cdef marcumq_cython(double a, double b, int M, double eps=1e-7, int max_iter=100
     j = (errbnd > 4*eps) and ((1 - S) > 8*eps)
 
     while j or k <= M:
-        d *= aa/k
+        d *= a2/k
         h += d
-        f *= bb / (k + M)
+        f *= b2 / (k + M)
         delta = f * h
         S += delta
-        f_err *= bb / k
+        f_err *= b2 / k
         errbnd -= f_err
         j = (errbnd > 4*eps) and ((1 - S) > 8*eps)
         k += 1
