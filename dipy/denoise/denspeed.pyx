@@ -763,6 +763,7 @@ cdef beta(int N):
 
 @cython.cdivision(True)
 cdef _fixed_point_g(double eta, double m, double sigma, int N):
+    return 1.
     return sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
 
 
