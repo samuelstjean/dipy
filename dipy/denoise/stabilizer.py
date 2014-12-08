@@ -137,22 +137,14 @@ def main():
     nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
 
-    #arglist = []
-    #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
-    # n_cores=8
-    # n = data.shape[-2]
-    # nbr_chunks = n_cores
-    # chunk_size = int(np.ceil(n / nbr_chunks))
+    n_cores=8
+    n = data.shape[-2]
+    nbr_chunks = n_cores
+    chunk_size = int(np.ceil(n / nbr_chunks))
     #data = data[..., 0]
     #m_hat = m_hat[..., 0]
     #chunk_size=1
 
-<<<<<<< HEAD
-    pool = Pool()
-    arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
-    data_stabilized = pool.map(helper, arglist)
-
-=======
     pool = Pool(processes=n_cores)
     arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, sigma_mat, repeat(N))]
     data_stabilized = pool.map(helper, arglist, chunksize=chunk_size)
@@ -160,7 +152,7 @@ def main():
     #out =  pool.map(helper, arglist)
     #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
     #print(data_stabilized.shape)
->>>>>>> c956c88a58e04f46b5d896cce8142e61b344079a
+
     pool.close()
     pool.join()
     data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
