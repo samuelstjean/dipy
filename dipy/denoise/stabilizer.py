@@ -61,8 +61,8 @@ def helper(arglist):
     print(data.shape)
 
     for idx in ndindex(data.shape):
-        eta = fixed_point_finder(m_hat[idx], sigma, N)
-        out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
+        eta = fixed_point_finder(m_hat[idx], sigma[idx], N)
+        out[idx] = _chi_to_gauss(data[idx], eta, sigma[idx], N)
 
     return out
 
