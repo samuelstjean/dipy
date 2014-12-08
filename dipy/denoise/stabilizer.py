@@ -130,12 +130,14 @@ def main():
     k = np.ones((3, 3, 3))
     for idx in range(data.shape[-1]):
         #m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
-        m_hat[..., idx] = convolve(data[..., idx], k) / np.sum(k)
+        m_hat[..., idx] = convolve(data[..., idx].astype(np.float32), k) / np.sum(k)
         # cur_max = np.max(data[..., idx])
 
    # m_hat = nlmeans(data, sigma_mode, rician=False)
    ### m_hat = data
    # m_hat *= mask_noise[..., None]
+
+    sigma_mat = np.ones_like(m_hat, dtype=np.float32) * sigma_mode
 
 
    # m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b1000/dwis.nii.gz').get_data()
@@ -153,7 +155,7 @@ def main():
     #chunk_size=1
 
     pool = Pool(processes=n_cores)
-    arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
+    arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, sigma_mat, repeat(N))]
     data_stabilized = pool.map(helper, arglist, chunksize=chunk_size)
     #print(arglist[0], 'bla')
     #out =  pool.map(helper, arglist)
