@@ -106,7 +106,7 @@ def main():
 
     for idx in range(data.shape[-2]):
         print("Now processing slice", idx+1, "out of", data.shape[-2])
-        ##sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
+        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
 
     print(sigma)
     print(np.percentile(sigma, 10.),  np.percentile(sigma, 90.))
@@ -114,7 +114,7 @@ def main():
     #sigma_mode = np.load(filename + "_sigma.npy")
 
     sigma_mode, num = mode(sigma, axis=None)
-    sigma_mode=200.#25.62295723
+    # sigma_mode=200.#25.62295723
     print("mode of sigma is", sigma_mode, "with nb", num, "median is", np.median(sigma))
     np.save(filename + "_sigma.npy", sigma_mode)
     nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
@@ -127,7 +127,7 @@ def main():
         # cur_max = np.max(data[..., idx])
 
    # m_hat = nlmeans(data, sigma_mode, rician=False)
-    #m_hat = data
+   ### m_hat = data
    # m_hat *= mask_noise[..., None]
 
 

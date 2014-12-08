@@ -714,7 +714,7 @@ cdef _marcumq_cython(double a, double b, int M, double eps=1e-8, int max_iter=10
 
     k = 1
     S = f * h
-    j = (errbnd > 4*eps)
+    j = (errbnd > 4*eps) #and ((1 - S) > 8*eps)
 
     while j or k <= M:
 
@@ -725,7 +725,7 @@ cdef _marcumq_cython(double a, double b, int M, double eps=1e-8, int max_iter=10
 
         f_err *= b2 / k
         errbnd -= f_err
-        j = (errbnd > 4*eps)
+        j = (errbnd > 4*eps) #and ((1 - S) > 8*eps)
         k += 1
 
         if (k > max_iter):
