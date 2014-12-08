@@ -186,7 +186,7 @@ def marcumq(a, b, M, eps=1e-7, max_iter=10000):
     return c + s * np.exp(-0.5 * (a-b)**2) * S
 
 
-def _marcumq_matlab(a, b, M, eps=1e-7):
+def _marcumq_matlab(a, b, M, eps=1e-10):
 
     # if np.all(np.abs(b) < eps):
     #     return np.ones_like(b)

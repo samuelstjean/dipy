@@ -54,23 +54,16 @@ def buildArgsParser():
 
 
 def helper(arglist):
-    #print(arglist)
+
     data, m_hat, sigma, N = arglist
     out = np.zeros(data.shape, dtype=np.float32)
 
-    #return chi_to_gauss(data, m_hat, sigma, N)
-    #1/0
-    #print(data.shape,data.dtype,m_hat.shape,m_hat.dtype,sigma,N,"1st")
     print(data.shape)
 
     for idx in ndindex(data.shape):
-        #print(data[idx],m_hat[idx], sigma, N, "2nd")
-        #print(idx)
-        #eta = m_hat[idx]
         eta = fixed_point_finder(m_hat[idx], sigma, N)
-        #print(eta,"3rd")
         out[idx] = _chi_to_gauss(data[idx], eta, sigma, N)
-        #print(idx)
+
     return out
 
 
@@ -111,11 +104,6 @@ def main():
     from time import time
     deb = time()
 
-
-#    m_hat = np.zeros_like(data, dtype=np.float64)
-#    for idx in range(data.shape[-1]):
-#        m_hat[..., idx] = denoise_bilateral(data[..., idx], sigma_range=0.1, sigma_spatial=15)
-
     for idx in range(data.shape[-2]):
         print("Now processing slice", idx+1, "out of", data.shape[-2])
         ##sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
@@ -139,7 +127,7 @@ def main():
         # cur_max = np.max(data[..., idx])
 
    # m_hat = nlmeans(data, sigma_mode, rician=False)
-    m_hat = data
+    #m_hat = data
    # m_hat *= mask_noise[..., None]
 
 
@@ -149,25 +137,24 @@ def main():
 
     #arglist = []
     #arglist += [(data_vox, m_hat_vox, sigma_mode, N) for data_vox, m_hat_vox in zip(data, m_hat)]
-    n_cores=8
-    n = data.shape[-2]
-    nbr_chunks = n_cores
-    chunk_size = int(np.ceil(n / nbr_chunks))
+    # n_cores=8
+    # n = data.shape[-2]
+    # nbr_chunks = n_cores
+    # chunk_size = int(np.ceil(n / nbr_chunks))
     #data = data[..., 0]
     #m_hat = m_hat[..., 0]
     #chunk_size=1
 
-    pool = Pool(processes=n_cores)
+    pool = Pool()
     arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mode), repeat(N))]
-    data_stabilized = pool.map(helper, arglist, chunksize=chunk_size)
-    #print(arglist[0], 'bla')
-    #out =  pool.map(helper, arglist)
-    #data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
-    #print(data_stabilized.shape)
+    data_stabilized = pool.map(helper, arglist)
+
     pool.close()
     pool.join()
     data_stabilized = np.asarray(data_stabilized).reshape(data.shape)
     print(data_stabilized.shape)
+
+
     #eta = fixed_point_finder(m_hat, sigma_mode, N)
     #print(data.shape, m_hat.shape, eta.shape)
     #nib.save(nib.Nifti1Image(eta.astype(dtype), affine, header), filename + '_eta.nii.gz')
