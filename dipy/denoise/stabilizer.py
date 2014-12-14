@@ -96,6 +96,7 @@ def main():
         filename = args.savename
 
     N = args.N
+    data = data.astype(np.float32)
     sigma = np.zeros(data.shape[-2], dtype=np.float32)
     mask_noise = np.zeros(data.shape[:-1], dtype=np.bool)
     #eta = np.zeros_like(data, dtype=np.float32)
@@ -123,7 +124,7 @@ def main():
     k = np.ones((3, 3, 3))
     for idx in range(data.shape[-1]):
         #m_hat[..., idx] = gaussian_filter(data[..., idx], 0.5)
-        m_hat[..., idx] = convolve(data[..., idx].astype(np.float32), k) / np.sum(k)
+        m_hat[..., idx] = convolve(data[..., idx], k) / np.sum(k)
         # cur_max = np.max(data[..., idx])
 
    # m_hat = nlmeans(data, sigma_mode, rician=False)
