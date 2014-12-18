@@ -893,10 +893,10 @@ def corrected_sigma(eta, sigma, N):
         Number of coils of the acquisition (N=1 for Rician noise)
 
     return :
-        Corrected sigma value, where sigma_gaussian = sigma / xi
+        Corrected sigma value, where sigma_gaussian = sigma / sqrt(xi)
     """
 
-    return sigma / _xi(eta, sigma, N)
+    return sigma / sqrt(_xi(eta, sigma, N))
 
 
 @cython.cdivision(True)

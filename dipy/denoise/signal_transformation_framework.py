@@ -863,23 +863,21 @@ from multiprocessing import Pool
 
 def _local_standard_deviation(arr):
 
-    fwhm = 15
-    blur = fwhm / np.sqrt(8 * np.log(2))
     size = (3, 3, 3)
 
     k = np.ones(size)
     sigma = np.zeros_like(arr, dtype=np.float32)
-    temp = np.zeros_like(sigma)
-    conv_out = np.zeros_like(sigma)
+    #temp = np.zeros_like(sigma, dtype=np.float32)
+    conv_out = np.zeros_like(sigma, dtype=np.float64)
 
     convolve(arr, k, output=conv_out, mode='reflect')
-    generic_filter(arr - conv_out/np.sum(k), np.std, size=size, mode='reflect', output=temp)
+    generic_filter(arr - conv_out/np.sum(k), np.std, size=size, mode='reflect', output=sigma) #temp
 
     # conv_out2 = np.zeros_like(sigma)
     # convolve(arr**2, k, output=conv_out2, mode='reflect')
 
     # temp = np.sqrt(conv_out2/np.sum(k) - (conv_out/np.sum(k))**2)
-    gaussian_filter(temp, blur, mode='reflect', output=sigma)
+    #gaussian_filter(temp, blur, mode='reflect', output=sigma)
 
     return sigma
 
@@ -912,4 +910,9 @@ def local_standard_deviation(arr, n_cores=None):
     pool.close()
     pool.join()
 
-    return np.rollaxis(np.asarray(results), 0, arr.ndim)
+    fwhm = 10
+    blur = fwhm / np.sqrt(8 * np.log(2))
+
+    sigma = np.median(np.rollaxis(np.asarray(results), 0, arr.ndim), axis=-1)
+
+    return gaussian_filter(sigma, blur, mode='reflect')

@@ -11,8 +11,8 @@ import argparse
 from multiprocessing import Pool
 from itertools import repeat
 
-from dipy.denoise.signal_transformation_framework import piesno#, _fixed_point_finder, _chi_to_gauss, fixed_point_finder
-from dipy.denoise.denspeed import _chi_to_gauss, fixed_point_finder
+from dipy.denoise.signal_transformation_framework import piesno, local_standard_deviation #, _fixed_point_finder, _chi_to_gauss, fixed_point_finder
+from dipy.denoise.denspeed import _chi_to_gauss, fixed_point_finder, corrected_sigma
 
 from scipy.stats import mode
 from scipy.ndimage.filters import gaussian_filter, convolve
@@ -61,8 +61,10 @@ def helper(arglist):
     print(data.shape)
 
     for idx in ndindex(data.shape):
-        eta = fixed_point_finder(m_hat[idx], sigma[idx], N)
-        out[idx] = _chi_to_gauss(data[idx], eta, sigma[idx], N)
+        sigma_corr = corrected_sigma(m_hat[idx], sigma[idx], N)
+        # print(sigma[idx], sigma_corr)
+        eta = fixed_point_finder(m_hat[idx], sigma_corr, N)
+        out[idx] = _chi_to_gauss(data[idx], eta, sigma_corr, N)
 
     return out
 
@@ -105,20 +107,24 @@ def main():
     from time import time
     deb = time()
 
-    for idx in range(data.shape[-2]):
-        print("Now processing slice", idx+1, "out of", data.shape[-2])
-        sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
 
-    print(sigma)
-    print(np.percentile(sigma, 10.),  np.percentile(sigma, 90.))
 
-    #sigma_mode = np.load(filename + "_sigma.npy")
+    # for idx in range(data.shape[-2]):
+    #     print("Now processing slice", idx+1, "out of", data.shape[-2])
+    #     sigma[idx], mask_noise[..., idx] = piesno(data[..., idx, :],  N)
 
-    sigma_mode, num = mode(sigma, axis=None)
-    # sigma_mode=200.#25.62295723
-    print("mode of sigma is", sigma_mode, "with nb", num, "median is", np.median(sigma))
-    np.save(filename + "_sigma.npy", sigma_mode)
-    nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
+    # print(sigma)
+    # print(np.percentile(sigma, 10.),  np.percentile(sigma, 90.))
+
+    # #sigma_mode = np.load(filename + "_sigma.npy")
+
+    # sigma_mode, num = mode(sigma, axis=None)
+    # # sigma_mode=200.#25.62295723
+    # print("mode of sigma is", sigma_mode, "with nb", num, "median is", np.median(sigma))
+    # np.save(filename + "_sigma.npy", sigma_mode)
+    # nib.save(nib.Nifti1Image(mask_noise.astype(np.int8), affine, header), filename + '_mask_noise.nii.gz')
+
+
 
     m_hat = np.zeros_like(data, dtype=np.float32)
     k = np.ones((3, 3, 3))
@@ -127,18 +133,23 @@ def main():
         m_hat[..., idx] = convolve(data[..., idx], k) / np.sum(k)
         # cur_max = np.max(data[..., idx])
 
-   # m_hat = nlmeans(data, sigma_mode, rician=False)
-   ### m_hat = data
-   # m_hat *= mask_noise[..., None]
+    # m_hat = nlmeans(data, sigma_mode, rician=False)
+    ### m_hat = data
+    # m_hat *= mask_noise[..., None]
 
-    sigma_mat = np.ones_like(m_hat, dtype=np.float32) * sigma_mode
+    # sigma_mat = np.ones_like(m_hat, dtype=np.float32) * sigma_mode
+    sigma_mat = local_standard_deviation(data)
+    nib.save(nib.Nifti1Image(sigma_mat, np.eye(4)), 'sigmat.nii.gz')
+    sigma_mat = np.median(sigma_mat, axis=-1)
+    nib.save(nib.Nifti1Image(sigma_mat, np.eye(4)), 'sigmatmed.nii.gz')
 
-
+    sigma_mat = np.ones_like(data) * sigma_mat[..., None]
+    np.save(filename + "_sigma.npy", sigma_mat)
    # m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b1000/dwis.nii.gz').get_data()
     nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
 
-    n_cores=8
+    n_cores = 8
     n = data.shape[-2]
     nbr_chunks = n_cores
     chunk_size = int(np.ceil(n / nbr_chunks))
@@ -168,7 +179,7 @@ def main():
     print("temps total:", time() - deb)
     nib.save(nib.Nifti1Image(data_stabilized.astype(dtype), affine, header), filename + "_stabilized.nii.gz")
 
-    print("Detected noise std was :", sigma_mode)
+    # print("Detected noise std was :", sigma_mode)
 
 
 if __name__ == "__main__":
