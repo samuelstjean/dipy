@@ -16,9 +16,9 @@ from dipy.denoise.denspeed import _chi_to_gauss, fixed_point_finder, corrected_s
 
 from scipy.stats import mode
 from scipy.ndimage.filters import gaussian_filter, convolve
-from dipy.denoise.nlmeans import nlmeans
+# from dipy.denoise.nlmeans import nlmeans
 from dipy.core.ndindex import ndindex
-from skimage.restoration import denoise_bilateral
+# from skimage.restoration import denoise_bilateral
 
 
 DESCRIPTION = """
@@ -58,13 +58,14 @@ def helper(arglist):
     data, m_hat, sigma, N = arglist
     out = np.zeros(data.shape, dtype=np.float32)
 
-    print(data.shape)
-
     for idx in ndindex(data.shape):
-        sigma_corr = corrected_sigma(m_hat[idx], sigma[idx], N)
-        # print(sigma[idx], sigma_corr)
-        eta = fixed_point_finder(m_hat[idx], sigma_corr, N)
-        out[idx] = _chi_to_gauss(data[idx], eta, sigma_corr, N)
+
+        if sigma[idx] > 0:
+            sigma_corr = corrected_sigma(m_hat[idx], sigma[idx], N)
+            eta = fixed_point_finder(m_hat[idx], sigma_corr, N)
+            out[idx] = _chi_to_gauss(data[idx], eta, sigma_corr, N)
+        else:
+            out[idx] = 0
 
     return out
 
@@ -139,16 +140,17 @@ def main():
 
     # sigma_mat = np.ones_like(m_hat, dtype=np.float32) * sigma_mode
     sigma_mat = local_standard_deviation(data)
-    nib.save(nib.Nifti1Image(sigma_mat, np.eye(4)), 'sigmat.nii.gz')
-    sigma_mat = np.median(sigma_mat, axis=-1)
-    nib.save(nib.Nifti1Image(sigma_mat, np.eye(4)), 'sigmatmed.nii.gz')
+    # nib.save(nib.Nifti1Image(sigma_mat, np.eye(4)), 'sigmat.nii.gz')
+    # sigma_mat = np.median(sigma_mat, axis=-1)
+    # nib.save(nib.Nifti1Image(sigma_mat, np.eye(4)), 'sigmatmed.nii.gz')
 
-    sigma_mat = np.ones_like(data) * sigma_mat[..., None]
-    np.save(filename + "_sigma.npy", sigma_mat)
+    # sigma_mat = np.ones_like(data) * sigma_mat[..., None]
+    # np.save(filename + "_sigma.npy", sigma_mat)
+    nib.save(nib.Nifti1Image(sigma_mat, affine, header), filename + '_sigma.nii.gz')
    # m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b1000/dwis.nii.gz').get_data()
     nib.save(nib.Nifti1Image(m_hat, affine, header), filename + '_m_hat.nii.gz')
     #sigma_mode=515.
-
+    # m_hat = nib.load('/home/local/USHERBROOKE/stjs2902/Bureau/phantomas_mic/b1000/dwis.nii.gz').get_data()
     n_cores = 8
     n = data.shape[-2]
     nbr_chunks = n_cores
@@ -158,7 +160,7 @@ def main():
     #chunk_size=1
 
     pool = Pool(processes=n_cores)
-    arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, sigma_mat, repeat(N))]
+    arglist=[(data_vox, m_hat_vox, sigma_vox, N_vox) for data_vox, m_hat_vox, sigma_vox, N_vox in zip(data, m_hat, repeat(sigma_mat), repeat(N))]
     data_stabilized = pool.map(helper, arglist, chunksize=chunk_size)
     #print(arglist[0], 'bla')
     #out =  pool.map(helper, arglist)
