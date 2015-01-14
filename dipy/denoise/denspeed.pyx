@@ -37,13 +37,15 @@ def nlmeans_3d(arr, mask=None, sigma=None, patch_radius=1,
     -------
     denoised_arr : ndarray
         the denoised ``arr`` which has the same shape as ``arr``.
-
     """
+
     if arr.ndim != 3:
         raise ValueError('arr needs to be a 3D ndarray')
 
     if mask is None:
-        mask = np.ones_like(arr, dtype='f8', order='C')
+
+        mask = np.ones(arr.shape, dtype='f8')
+
     else:
         mask = np.ascontiguousarray(mask, dtype='f8')
 
@@ -54,6 +56,7 @@ def nlmeans_3d(arr, mask=None, sigma=None, patch_radius=1,
     arr = add_padding_reflection(arr, block_radius)
     mask = add_padding_reflection(mask.astype('f8'), block_radius)
     arrnlm = _nlmeans_3d(arr, mask, sigma, patch_radius, block_radius, rician)
+
 
     return remove_padding(arrnlm, block_radius)
 
@@ -98,6 +101,7 @@ def nlmeans_4d(arr, mask=None, sigma=None, patch_radius=1,
     arr = add_padding_reflection4D(arr, block_radius)
     mask = add_padding_reflection(mask.astype('f8'), block_radius)
     arrnlm = _nlmeans_4d(arr, mask, sigma, patch_radius, block_radius, rician)
+
 
     return remove_padding(arrnlm, block_radius)
 
@@ -227,11 +231,15 @@ cdef double process_block(double [:, :, ::1] arr,
         double * cache
         double denom
         cnp.npy_intp BS = B * 2 + 1
+        double sqrt2 = 1.4142135623730951
+
 
     cnt = 0
     sumw = 0
     patch_vol_size = (P + P + 1) * (P + P + 1) * (P + P + 1)
-    denom = sigma * sigma
+
+    denom = sigma * sigma * sqrt2
+
     W = <double *> malloc(BS * BS * BS * sizeof(double))
     cache = <double *> malloc(BS * BS * BS * sizeof(double))
 
@@ -263,7 +271,6 @@ cdef double process_block(double [:, :, ::1] arr,
                 cnt += 1
 
     cnt = 0
-
     sum_out = 0
 
     # calculate normalized weights and sums of the weights with the positions
@@ -278,9 +285,7 @@ cdef double process_block(double [:, :, ::1] arr,
                     w = 0
 
                 x = cache[m * BS * BS + n * BS + o]
-
                 sum_out += w * x * x
-
                 cnt += 1
 
     free(W)
@@ -437,7 +442,8 @@ def add_padding_reflection4D(double [:, :, :, ::1] arr, padding):
 def correspond_indices(dim_size, padding):
     return np.ascontiguousarray(np.hstack((np.arange(1, padding + 1)[::-1],
                                 np.arange(dim_size),
-                                np.arange(dim_size - padding - 1, dim_size - 1)[::-1])))
+                                np.arange(dim_size - padding - 1, dim_size - 1)[::-1])),
+                                dtype=np.intp)
 
 
 def remove_padding(arr, padding):
@@ -458,13 +464,13 @@ def remove_padding(arr, padding):
 @cython.wraparound(False)
 @cython.boundscheck(False)
 cdef cnp.npy_intp copy_block_3d(double * dest,
-                                 cnp.npy_intp I,
-                                 cnp.npy_intp J,
-                                 cnp.npy_intp K,
-                                 double [:, :, ::1] source,
-                                 cnp.npy_intp min_i,
-                                 cnp.npy_intp min_j,
-                                 cnp.npy_intp min_k) nogil:
+                                cnp.npy_intp I,
+                                cnp.npy_intp J,
+                                cnp.npy_intp K,
+                                double [:, :, ::1] source,
+                                cnp.npy_intp min_i,
+                                cnp.npy_intp min_j,
+                                cnp.npy_intp min_k) nogil:
 
     cdef cnp.npy_intp i, j
 
@@ -473,6 +479,7 @@ cdef cnp.npy_intp copy_block_3d(double * dest,
             memcpy(&dest[i * J * K  + j * K], &source[i + min_i, j + min_j, min_k], K * sizeof(double))
 
     return 1
+
 
 
 @cython.wraparound(False)
