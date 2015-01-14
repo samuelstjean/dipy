@@ -15,6 +15,13 @@ from dipy.core.ndindex import ndindex
 
 from scilpy.denoising.hyp1f1 import hyp1f1
 
+from scipy.ndimage.filters import uniform_filter, generic_filter, gaussian_filter
+from multiprocessing import Pool, cpu_count
+
+from dipy.denoise.denspeed import non_stat_noise
+from scipy.ndimage import convolve
+
+
 def _inv_cdf_gauss(y, eta, sigma):
     return eta + sigma * np.sqrt(2) * erfinv(2*y - 1)
 
@@ -819,10 +826,6 @@ def lpca(img, sigma):
     return col2im_nd(out.T, (3, 3, 3, img.shape[-1]), img.shape, (2, 2, 2, 1))
 
 
-from dipy.denoise.denspeed import non_stat_noise
-from scipy.ndimage import convolve
-
-
 def estimate_sigma(arr):
     """Standard deviation estimation from local patches
 
@@ -856,9 +859,6 @@ def estimate_sigma(arr):
     #sigma_blur = fwhm / np.sqrt(8 * np.log(2))
 
     return sigma
-
-from scipy.ndimage.filters import uniform_filter, generic_filter, gaussian_filter
-from multiprocessing import Pool
 
 
 def _local_standard_deviation(arr):
@@ -905,14 +905,36 @@ def local_standard_deviation(arr, n_cores=None):
     for i in range(arr.shape[-1]):
         list_arr += [arr[..., i]]
 
+    if n_cores is None:
+        n_cores = cpu_count()
+
     pool = Pool(n_cores)
-    results = pool.map(_local_standard_deviation, list_arr)
+    result = pool.map(_local_standard_deviation, list_arr)
     pool.close()
     pool.join()
 
     fwhm = 10
     blur = fwhm / np.sqrt(8 * np.log(2))
 
-    sigma = np.median(np.rollaxis(np.asarray(results), 0, arr.ndim), axis=-1)
+    sigma = np.median(np.rollaxis(np.asarray(result), 0, arr.ndim), axis=-1)
 
     return gaussian_filter(sigma, blur, mode='reflect')
+
+
+def homomorphic_noise_estimation(data):
+
+    euler_mascheroni = 0.577215664901532860606512090082402431042
+
+    data = data.astype(np.float32)
+    m_hat = np.zeros_like(data, dtype=np.float32)
+    low_pass = np.zeros_like(data, dtype=np.float32)
+    blur = 3.4
+    k = np.ones((3, 3, 3))
+
+    for idx in range(data.shape[-1]):
+        m_hat[..., idx] = np.abs(data[..., idx] - convolve(data[..., idx], k) / np.sum(k))
+        low_pass[..., idx] = gaussian_filter(m_hat[..., idx], blur, mode='reflect')
+
+    low_pass = np.median(low_pass, axis=-1)
+
+    return np.sqrt(2) * np.exp(np.log(np.abs(low_pass)) + euler_mascheroni/2)

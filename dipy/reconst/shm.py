@@ -711,7 +711,7 @@ def sh_to_sf(sh, sphere, sh_order, basis_type=None):
 
 
 def sh_to_sf_matrix(sphere, sh_order, basis_type=None, return_inv=True, smooth=0):
-    """ Matrix that transforms Spherical harmonics (SH) to spherical 
+    """ Matrix that transforms Spherical harmonics (SH) to spherical
     function (SF).
 
     Parameters
@@ -730,7 +730,7 @@ def sh_to_sf_matrix(sphere, sh_order, basis_type=None, return_inv=True, smooth=0
         If True then the inverse of the matrix is also returned
     smooth : float, optional
         Lambda-regularization in the SH fit (default 0.0).
-    
+
     Returns
     -------
     B : ndarray
