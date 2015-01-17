@@ -551,6 +551,51 @@ class QballBaseModel(SphHarmModel):
             coef *= mask[..., None]
         return SphHarmFit(self, coef, mask)
 
+    def predict(self, sh_coeff, gtab=None, S0=1):
+        """Compute a signal prediction given spherical harmonic coefficients
+        and (optionally) a response function for the provided GradientTable
+        class instance.
+
+        Parameters
+        ----------
+        sh_coeff : ndarray
+            The spherical harmonic representation of the FOD from which to make
+            the signal prediction.
+        gtab : GradientTable
+            The gradients for which the signal will be predicted. Use the
+            model's gradient table by default.
+        S0 : ndarray or float
+            The non diffusion-weighted signal value.
+
+        Returns
+        -------
+        pred_sig : ndarray
+            The predicted signal.
+
+        """
+        if gtab is None or gtab is self.gtab:
+            SH_basis = self.B_dwi
+            gtab = self.gtab
+        else:
+            x, y, z = gtab.gradients[~gtab.b0s_mask].T
+            r, theta, phi = cart2sphere(x, y, z)
+            SH_basis, m, n = real_sym_sh_basis(self.sh_order, theta, phi)
+
+        # Because R is diagonal, the matrix multiply is written as a multiply
+        predict_matrix = SH_basis #* self.R.diagonal()
+        S0 = np.asarray(S0)[..., None]
+        scaling = S0 #/ self.response_scaling
+
+        # This is the key operation: convolve and multiply by S0:
+        pre_pred_sig = scaling * np.dot(predict_matrix, sh_coeff)
+
+        # Now put everything in its right place:
+        pred_sig = np.zeros(pre_pred_sig.shape[:-1] + (gtab.bvals.shape[0],))
+        pred_sig[..., ~gtab.b0s_mask] = pre_pred_sig
+        pred_sig[..., gtab.b0s_mask] = S0
+
+        return pred_sig
+
 
 class SphHarmFit(OdfFit):
     """Diffusion data fit to a spherical harmonic model"""

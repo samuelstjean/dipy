@@ -16,7 +16,6 @@ from dipy.utils.six.moves import range
 
 from scipy.special import lpn, gamma
 from dipy.reconst.dti import TensorModel, fractional_anisotropy
-from scipy.integrate import quad
 
 
 class ConstrainedSphericalDeconvModel(SphHarmModel):
