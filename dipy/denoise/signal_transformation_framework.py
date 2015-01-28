@@ -13,7 +13,7 @@ from scipy.linalg import svd
 from dipy.core.ndindex import ndindex
 # from dipy.denoise.denspeed import marcumq_cython
 
-from scilpy.denoising.hyp1f1 import hyp1f1
+# from scilpy.denoising.hyp1f1 import hyp1f1
 
 from scipy.ndimage.filters import uniform_filter, generic_filter, gaussian_filter
 from multiprocessing import Pool, cpu_count
@@ -843,20 +843,21 @@ def estimate_sigma(arr):
     if arr.ndim == 3:
         arr = arr[..., None]
 
-    sigma = np.zeros_like(arr, dtype=np.float32)
-    k = np.ones((3, 3, 3))
+    sigma = np.zeros_like(arr, dtype=np.float64)
+    size = (3, 3, 3)
+    k = np.ones(size) / np.sum(size)
     temp = np.zeros_like(sigma[..., 0])
     ##k2 = np.ones((5, 5, 5), dtype=np.int16)
 
     for i in range(sigma.shape[-1]):
         convolve(arr[..., i], k, mode='reflect', output=temp)
-        sigma[..., i] = np.sqrt(non_stat_noise(arr[..., i] - temp/np.sum(k)))
+        sigma[..., i] = np.sqrt(non_stat_noise(arr[..., i] - temp))
         #sigma[..., i] = convolve(temp, k2)/np.sum(k2)
         #print(non_stat_noise(arr[..., i]).shape)
 
-    #fwhm = sigma * np.sqrt(8 * np.log(2))
-    #fwhm = 15
-    #sigma_blur = fwhm / np.sqrt(8 * np.log(2))
+    # fwhm = sigma * np.sqrt(8 * np.log(2))
+    # fwhm = 15
+    # sigma_blur = fwhm / np.sqrt(8 * np.log(2))
 
     return sigma
 

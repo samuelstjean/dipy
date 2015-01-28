@@ -6,7 +6,7 @@ cimport cython
 from cython.parallel import parallel, prange
 
 #from dipy.denoise.signal_transformation_framework import _inv_cdf_gauss
-from scilpy.denoising.hyp1f1 import hyp1f1_pas_vec as hyp1f1
+# from scilpy.denoising.hyp1f1 import hyp1f1_pas_vec as hyp1f1
 from scipy.special import erfinv
 
 from libc.math cimport sqrt, exp
@@ -638,7 +638,7 @@ cdef double block_variance(double [:, :, ::1] arr,
 
                             # this line takes most of the time! mem access
                             d = cache[(B + a) * BS * BS + (B + b) * BS + (B + c)] - cache[(m + a) * BS * BS + (n + b) * BS + (o + c)]
-                            sumd += d * d
+                            sumd += d**2
 
                 if (sumd < min_d) and (sumd > 0):
                     min_d = sumd
@@ -648,300 +648,300 @@ cdef double block_variance(double [:, :, ::1] arr,
     return min_d
 
 
-def _inv_cdf_gauss(y, eta, sigma):
-    """Helper function for _chi_to_gauss. Returns the gaussian distributed value
-    associated to a given probability. See p. 4 of [1] eq. 13.
-
-    y : float
-        Probability of observing the desired value in the normal distribution N(eta, sigma**2)
-    eta :
-        Mean of the normal distribution N(eta, sigma**2)
-    sigma : float
-        Standard deviation of the normal distribution N(eta, sigma**2)
-
-    return :
-        Value associated to probability y given a normal distribution N(eta, sigma**2)
-    """
-    sqrt2 = 1.4142135623730951
-    return eta + sigma * sqrt2 * erfinv(2*y - 1)
-
-
-def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7):
-    """Maps the noisy signal intensity from a Rician/Non central chi distribution
-    to it's gaussian counterpart. See p. 4 of [1] eq. 12.
-
-    m : float
-        The noisy, Rician/Non central chi distributed value
-    eta : float
-        The underlying signal intensity estimated value
-    sigma : float
-        The gaussian noise estimated standard deviation
-    N : int
-        Number of coils of the acquision (N=1 for Rician noise)
-    alpha : float
-        Confidence interval for the cumulative distribution function.
-        clips the cdf to alpha/2 <= cdf <= 1-alpha/2
-
-    return
-        float : The noisy gaussian distributed signal intensity
-    """
-
-    cdf = 1 - _marcumq_cython(eta/sigma, m/sigma, N)
-    cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
-    return _inv_cdf_gauss(cdf, eta, sigma)
-
-
-@cython.cdivision(True)
-cdef _marcumq_cython(double a, double b, int M, double eps=1e-8, int max_iter=10000):
-    """Computes the generalized Marcum Q function of order M.
-    http://en.wikipedia.org/wiki/Marcum_Q-function
-
-    a : float, eta/sigma
-    b : float, m/sigma
-    M : int, order of the function (Number of coils, N=1 for Rician noise)
-
-    return : float
-        Value of the function, always between 0 and 1 since it's a pdf.
-    """
-    cdef:
-        double a2, b2, d, h, f, f_err, errbnd, S, factorial_M = 1.
-        int i, j, k
-
-    a2 = 0.5 * a**2
-    b2 = 0.5 * b**2
-    d = exp(-a2)
-    h = exp(-a2)
-
-    for i in range(1, M+1):
-        factorial_M *= i
-
-    f = (b2**M) * exp(-b2) / factorial_M
-    f_err = exp(-b2)
-    errbnd = 1. - f_err
-
-    k = 1
-    S = f * h
-    j = (errbnd > 4*eps) #and ((1 - S) > 8*eps)
-
-    while j or k <= M:
-
-        d *= a2/k
-        h += d
-        f *= b2 / (k + M)
-        S += (f * h)
-
-        f_err *= b2 / k
-        errbnd -= f_err
-        j = (errbnd > 4*eps) #and ((1 - S) > 8*eps)
-        k += 1
-
-        if (k > max_iter):
-            break
-
-    return 1 - S
-
-
-def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
-    """Fixed point formula for finding eta. Table 1 p. 11 of [1].
-    This simply wraps the cython function _fixed_point_finder
-
-    m_hat : float
-        initial value for the estimation of eta.
-    sigma : float
-        Gaussian standard deviation of the noise.
-    N : int
-        Number of coils of the acquision (N=1 for Rician noise).
-    max_iter : int, default=100
-        maximum number of iterations before breaking from the loop.
-    eps : float, default = 1e-4
-        Criterion for reaching convergence between two subsequent estimates of eta.
-
-    return
-    t1 : float
-        Estimation of the underlying signal value
-    """
-
-    return _fixed_point_finder(m_hat, sigma, N, max_iter, eps)
-
-
-@cython.cdivision(True)
-cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, double eps=1e-4):
-    """Fixed point formula for finding eta. Table 1 p. 11 of [1]
-
-    m_hat : float
-        initial value for the estimation of eta
-    sigma : float
-        Gaussian standard deviation fo tthe noise
-    N : int
-        Number of coils of the acquision (N=1 for Rician noise)
-    max_iter : int, default=100
-        maximum number of iterations before breaking from the loop
-    eps : float, default = 1e-4
-        Criterion for reaching convergence between two subsequent estimates
-
-    return
-    t1 : float
-        Estimation of the underlying signal value
-    """
-
-    cdef:
-        double delta, m, t0, t1
-        int cond, n_iter
-
-    delta = _beta(N) * sigma - m_hat
-
-    if delta == 0:
-        return 0
-    elif delta > 0:
-        m = _beta(N) * sigma + delta
-    else:
-        m = m_hat
-
-    t0 = m
-    t1 = _fixed_point_k(t0, m, sigma, N)
-    cond = True
-    n_iter = 0
-
-    while cond:
-
-        t0 = t1
-        t1 = _fixed_point_k(t0, m, sigma, N)
-        n_iter += 1
-        cond = abs(t1 - t0) > eps
-
-        if n_iter > max_iter:
-            break
-
-    if delta > 0:
-        return -t1
-
-    return t1
-
-
-@cython.cdivision(False)
-cdef _beta(int N):
-    """Helper function for _xi, see p. 3 [1] just after eq. 8."""
-    #return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
-
-    cdef double facN = 1., fac2N = 1., sqrtpi2 = 1.2533141373155001
-
-    # factorial(N-1)
-    for i in range(1, N):
-        facN *= i
-
-    # factorial2(2*N-1)
-    for i in range(1, 2*N, 2):
-        fac2N *= i
-
-    return sqrtpi2 * (fac2N / (2**(N-1) * facN))
-
-    # if N == 1:
-    #     return 1.25331413732
-    # elif N == 2:
-    #     return 1.87997120597
-    # elif N == 4:
-    #     return 2.74162467538
-    # elif N == 6:
-    #     return 3.39276053578
-    # elif N == 8:
-    #     return 3.93802562189
-    # elif N == 12:
-    #     return 4.84822789808
-    # elif N == 16:
-    #     return 5.61283938922
-    # elif N == 20:
-    #     return 6.28515420794
-    # elif N == 24:
-    #     return 6.89221524065
-    # elif N == 36:
-    #     return 8.45587062694
-    # elif N == 48:
-    #     return 9.77247710766
-    # elif N == 64:
-    #     return 11.2916332015
-    # else:
-    #     raise NotImplementedError("Number of coils " + N + " not supported! \
-    #         Add it using the formula in dipy.denoise.denspeed._beta")
+# def _inv_cdf_gauss(y, eta, sigma):
+#     """Helper function for _chi_to_gauss. Returns the gaussian distributed value
+#     associated to a given probability. See p. 4 of [1] eq. 13.
+
+#     y : float
+#         Probability of observing the desired value in the normal distribution N(eta, sigma**2)
+#     eta :
+#         Mean of the normal distribution N(eta, sigma**2)
+#     sigma : float
+#         Standard deviation of the normal distribution N(eta, sigma**2)
+
+#     return :
+#         Value associated to probability y given a normal distribution N(eta, sigma**2)
+#     """
+#     sqrt2 = 1.4142135623730951
+#     return eta + sigma * sqrt2 * erfinv(2*y - 1)
+
+
+# def _chi_to_gauss(m, eta, sigma, N, alpha=1e-7):
+#     """Maps the noisy signal intensity from a Rician/Non central chi distribution
+#     to it's gaussian counterpart. See p. 4 of [1] eq. 12.
+
+#     m : float
+#         The noisy, Rician/Non central chi distributed value
+#     eta : float
+#         The underlying signal intensity estimated value
+#     sigma : float
+#         The gaussian noise estimated standard deviation
+#     N : int
+#         Number of coils of the acquision (N=1 for Rician noise)
+#     alpha : float
+#         Confidence interval for the cumulative distribution function.
+#         clips the cdf to alpha/2 <= cdf <= 1-alpha/2
+
+#     return
+#         float : The noisy gaussian distributed signal intensity
+#     """
+
+#     cdf = 1 - _marcumq_cython(eta/sigma, m/sigma, N)
+#     cdf = np.clip(cdf, alpha/2, 1 - alpha/2)
+#     return _inv_cdf_gauss(cdf, eta, sigma)
+
+
+# @cython.cdivision(True)
+# cdef _marcumq_cython(double a, double b, int M, double eps=1e-8, int max_iter=10000):
+#     """Computes the generalized Marcum Q function of order M.
+#     http://en.wikipedia.org/wiki/Marcum_Q-function
+
+#     a : float, eta/sigma
+#     b : float, m/sigma
+#     M : int, order of the function (Number of coils, N=1 for Rician noise)
+
+#     return : float
+#         Value of the function, always between 0 and 1 since it's a pdf.
+#     """
+#     cdef:
+#         double a2, b2, d, h, f, f_err, errbnd, S, factorial_M = 1.
+#         int i, j, k
+
+#     a2 = 0.5 * a**2
+#     b2 = 0.5 * b**2
+#     d = exp(-a2)
+#     h = exp(-a2)
+
+#     for i in range(1, M+1):
+#         factorial_M *= i
+
+#     f = (b2**M) * exp(-b2) / factorial_M
+#     f_err = exp(-b2)
+#     errbnd = 1. - f_err
+
+#     k = 1
+#     S = f * h
+#     j = (errbnd > 4*eps) #and ((1 - S) > 8*eps)
+
+#     while j or k <= M:
+
+#         d *= a2/k
+#         h += d
+#         f *= b2 / (k + M)
+#         S += (f * h)
+
+#         f_err *= b2 / k
+#         errbnd -= f_err
+#         j = (errbnd > 4*eps) #and ((1 - S) > 8*eps)
+#         k += 1
+
+#         if (k > max_iter):
+#             break
+
+#     return 1 - S
+
+
+# def fixed_point_finder(m_hat, sigma, N, max_iter=100, eps=1e-4):
+#     """Fixed point formula for finding eta. Table 1 p. 11 of [1].
+#     This simply wraps the cython function _fixed_point_finder
+
+#     m_hat : float
+#         initial value for the estimation of eta.
+#     sigma : float
+#         Gaussian standard deviation of the noise.
+#     N : int
+#         Number of coils of the acquision (N=1 for Rician noise).
+#     max_iter : int, default=100
+#         maximum number of iterations before breaking from the loop.
+#     eps : float, default = 1e-4
+#         Criterion for reaching convergence between two subsequent estimates of eta.
+
+#     return
+#     t1 : float
+#         Estimation of the underlying signal value
+#     """
+
+#     return _fixed_point_finder(m_hat, sigma, N, max_iter, eps)
+
+
+# @cython.cdivision(True)
+# cdef _fixed_point_finder(double m_hat, double sigma, int N, int max_iter=100, double eps=1e-4):
+#     """Fixed point formula for finding eta. Table 1 p. 11 of [1]
+
+#     m_hat : float
+#         initial value for the estimation of eta
+#     sigma : float
+#         Gaussian standard deviation fo tthe noise
+#     N : int
+#         Number of coils of the acquision (N=1 for Rician noise)
+#     max_iter : int, default=100
+#         maximum number of iterations before breaking from the loop
+#     eps : float, default = 1e-4
+#         Criterion for reaching convergence between two subsequent estimates
+
+#     return
+#     t1 : float
+#         Estimation of the underlying signal value
+#     """
+
+#     cdef:
+#         double delta, m, t0, t1
+#         int cond, n_iter
+
+#     delta = _beta(N) * sigma - m_hat
+
+#     if delta == 0:
+#         return 0
+#     elif delta > 0:
+#         m = _beta(N) * sigma + delta
+#     else:
+#         m = m_hat
+
+#     t0 = m
+#     t1 = _fixed_point_k(t0, m, sigma, N)
+#     cond = True
+#     n_iter = 0
+
+#     while cond:
+
+#         t0 = t1
+#         t1 = _fixed_point_k(t0, m, sigma, N)
+#         n_iter += 1
+#         cond = abs(t1 - t0) > eps
+
+#         if n_iter > max_iter:
+#             break
+
+#     if delta > 0:
+#         return -t1
+
+#     return t1
+
+
+# @cython.cdivision(False)
+# cdef _beta(int N):
+#     """Helper function for _xi, see p. 3 [1] just after eq. 8."""
+#     #return np.sqrt(np.pi/2) * (factorial2(2*N-1)/(2**(N-1) * factorial(N-1)))
+
+#     cdef double facN = 1., fac2N = 1., sqrtpi2 = 1.2533141373155001
+
+#     # factorial(N-1)
+#     for i in range(1, N):
+#         facN *= i
+
+#     # factorial2(2*N-1)
+#     for i in range(1, 2*N, 2):
+#         fac2N *= i
+
+#     return sqrtpi2 * (fac2N / (2**(N-1) * facN))
+
+#     # if N == 1:
+#     #     return 1.25331413732
+#     # elif N == 2:
+#     #     return 1.87997120597
+#     # elif N == 4:
+#     #     return 2.74162467538
+#     # elif N == 6:
+#     #     return 3.39276053578
+#     # elif N == 8:
+#     #     return 3.93802562189
+#     # elif N == 12:
+#     #     return 4.84822789808
+#     # elif N == 16:
+#     #     return 5.61283938922
+#     # elif N == 20:
+#     #     return 6.28515420794
+#     # elif N == 24:
+#     #     return 6.89221524065
+#     # elif N == 36:
+#     #     return 8.45587062694
+#     # elif N == 48:
+#     #     return 9.77247710766
+#     # elif N == 64:
+#     #     return 11.2916332015
+#     # else:
+#     #     raise NotImplementedError("Number of coils " + N + " not supported! \
+#     #         Add it using the formula in dipy.denoise.denspeed._beta")
 
 
-@cython.cdivision(True)
-cdef _fixed_point_g(double eta, double m, double sigma, int N):
-    """Helper function for _fixed_point_k, see p. 3 [1] eq. 11."""
-    return sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
+# @cython.cdivision(True)
+# cdef _fixed_point_g(double eta, double m, double sigma, int N):
+#     """Helper function for _fixed_point_k, see p. 3 [1] eq. 11."""
+#     return sqrt(m**2 + (_xi(eta, sigma, N) - 2*N) * sigma**2)
 
 
-@cython.cdivision(True)
-cdef _fixed_point_k(eta, m, sigma, N):
-    """Helper function for _fixed_point_, see p. 11 [1] eq. D2."""
+# @cython.cdivision(True)
+# cdef _fixed_point_k(eta, m, sigma, N):
+#     """Helper function for _fixed_point_, see p. 11 [1] eq. D2."""
 
-    cdef:
-        double fpg, num, denom
-        double eta2sigma = -eta**2/(2*sigma**2)
+#     cdef:
+#         double fpg, num, denom
+#         double eta2sigma = -eta**2/(2*sigma**2)
 
-    fpg = _fixed_point_g(eta, m, sigma, N)
-    num = fpg * (fpg - eta)
+#     fpg = _fixed_point_g(eta, m, sigma, N)
+#     num = fpg * (fpg - eta)
 
-    denom = eta * (1 - ((_beta(N)**2)/(2*N)) *
-                   hyp1f1(-0.5, N, eta2sigma) *
-                   hyp1f1(0.5, N+1, eta2sigma)) - fpg
+#     denom = eta * (1 - ((_beta(N)**2)/(2*N)) *
+#                    hyp1f1(-0.5, N, eta2sigma) *
+#                    hyp1f1(0.5, N+1, eta2sigma)) - fpg
 
-    return eta - num / denom
+#     return eta - num / denom
 
 
-def corrected_sigma(eta, sigma, N):
-    """Compute the local corrected standard deviation for the adaptive nonlocal means
-        according to the correction factor xi.
+# def corrected_sigma(eta, sigma, N):
+#     """Compute the local corrected standard deviation for the adaptive nonlocal means
+#         according to the correction factor xi.
 
-    eta : float
-        Signal intensity
-    sigma : float
-        Noise magnitude standard deviation
-    N : int
-        Number of coils of the acquisition (N=1 for Rician noise)
+#     eta : float
+#         Signal intensity
+#     sigma : float
+#         Noise magnitude standard deviation
+#     N : int
+#         Number of coils of the acquisition (N=1 for Rician noise)
 
-    return :
-        Corrected sigma value, where sigma_gaussian = sigma / sqrt(xi)
-    """
+#     return :
+#         Corrected sigma value, where sigma_gaussian = sigma / sqrt(xi)
+#     """
 
-    return sigma / sqrt(_xi(eta, sigma, N))
+#     return sigma / sqrt(_xi(eta, sigma, N))
 
 
-@cython.cdivision(True)
-cdef _xi(double eta, double sigma, int N):
-    """Standard deviation scaling factor formula, see p. 3 of [1], eq. 10.
+# @cython.cdivision(True)
+# cdef _xi(double eta, double sigma, int N):
+#     """Standard deviation scaling factor formula, see p. 3 of [1], eq. 10.
 
-    eta : float
-        Signal intensity
-    sigma : float
-        Noise magnitude standard deviation
-    N : int
-        Number of coils of the acquisition (N=1 for Rician noise)
+#     eta : float
+#         Signal intensity
+#     sigma : float
+#         Noise magnitude standard deviation
+#     N : int
+#         Number of coils of the acquisition (N=1 for Rician noise)
 
-    return :
-        the correction factor xi, where
-        sigma_gaussian = sigma / xi
-    """
+#     return :
+#         the correction factor xi, where
+#         sigma_gaussian = sigma / xi
+#     """
 
-    return 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
+#     return 2*N + eta**2/sigma**2 - (_beta(N) * hyp1f1(-0.5, N, -eta**2/(2*sigma**2)))**2
 
 
-# Test for cython functions
+# # Test for cython functions
 
-def _test_marcumq_cython(a, b, M, eps=1e-7, max_iter=10000):
-    return _marcumq_cython(a, b, M, eps, max_iter)
+# def _test_marcumq_cython(a, b, M, eps=1e-7, max_iter=10000):
+#     return _marcumq_cython(a, b, M, eps, max_iter)
 
 
-def _test_beta(N):
-    return _beta(N)
+# def _test_beta(N):
+#     return _beta(N)
 
 
-def _test_fixed_point_g(eta, m, sigma, N):
-    return _fixed_point_g(eta, m, sigma, N)
+# def _test_fixed_point_g(eta, m, sigma, N):
+#     return _fixed_point_g(eta, m, sigma, N)
 
 
-def _test_fixed_point_k(eta, m, sigma, N):
-    return _fixed_point_k(eta, m, sigma, N)
+# def _test_fixed_point_k(eta, m, sigma, N):
+#     return _fixed_point_k(eta, m, sigma, N)
 
 
-def _test_xi(eta, sigma, N):
-    return _xi(eta, sigma, N)
+# def _test_xi(eta, sigma, N):
+#     return _xi(eta, sigma, N)
