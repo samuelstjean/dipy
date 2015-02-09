@@ -8,7 +8,7 @@ Overview
 ========
 
 dipy can display streamlines with a colormap
-In this example we give a short introduction on how to use it 
+In this example we give a short introduction on how to use it
 to display streamlines with colormap and scalar_bar from fvtk
 
 """
@@ -20,7 +20,9 @@ import numpy as np
 import nibabel as nib
 from dipy.viz import fvtk
 import dipy.viz.fvtk_actors as vtk_a
+import dipy.viz.fvtk_util as fvtk_u
 
+import dipy.viz.guillotine as guillotine
 """
 2. Read/write trackvis streamline files with nibabel.
 """
@@ -50,6 +52,9 @@ lines = [nib.affines.apply_affine(transfo, s) for s in lines]
 width = 0.1
 fvtk_tubes = vtk_a.streamtube(lines, fa_colormap, linewidth=width)
 scalar_bar = vtk_a.scalar_bar(fvtk_tubes.GetMapper().GetLookupTable())
+
+rotation = fvtk_u.rotation_from_lines(lines)
+g = guillotine.Guillotine()
 
 renderer = fvtk.ren()
 fvtk.add(renderer, fvtk_tubes)
