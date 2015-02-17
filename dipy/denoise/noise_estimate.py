@@ -1,5 +1,6 @@
 from __future__ import division, print_function
 
+import warnings
 import numpy as np
 
 from scipy.ndimage.filters import convolve
@@ -17,6 +18,9 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
     Probabilistic Identification and Estimation of Noise (PIESNO)
     A routine for finding the underlying gaussian distribution standard
     deviation from magnitude signals.
+
+    This function works slice by slice, iterating over the 3rd axis of the dataset
+    and returns an estimation of the noise for each slice.
 
     This is a re-implementation of [1]_ and the second step in the
     stabilisation framework of [2]_.
@@ -200,16 +204,20 @@ def piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
         mask_noise = np.zeros(data.shape[:-1], dtype=np.bool)
 
         for idx in range(data.shape[-2]):
-            sigma[idx], mask_noise[..., idx] = _piesno_3D(data[..., idx, :], N, alpha=alpha, l=l, itermax=itermax, eps=eps)
-
-        # Take the mode of all the sigmas from each slice as the best estimate,
-        # this should be stable with more or less 50% of the guesses at the same value.
-        print(sigma)
-        sigma, num = mode(sigma, axis=None)
-        print(sigma, num)
+            sigma[idx], mask_noise[..., idx] = _piesno_3D(data[..., idx, :], N,
+                                                          alpha=alpha,
+                                                          l=l,
+                                                          itermax=itermax,
+                                                          eps=eps,
+                                                          return_mask=return_mask)
 
     else:
-        sigma, mask_noise = _piesno_3D(data, N, alpha=alpha, l=l, itermax=itermax, eps=eps)
+        sigma, mask_noise = _piesno_3D(data, N,
+                                       alpha=alpha,
+                                       l=l,
+                                       itermax=itermax,
+                                       eps=eps,
+                                       return_mask=return_mask)
 
     if return_mask:
         return sigma, mask_noise
@@ -217,10 +225,10 @@ def piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
     return sigma
 
 
-def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
+def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False):
     """
-    Probabilistic Identification and Estimation of Noise (PIESNO)
-    This is the slice by slice version.
+    Probabilistic Identification and Estimation of Noise (PIESNO).
+    This is the slice by slice version for working on a 4D array.
 
     Parameters
     -----------
@@ -292,15 +300,21 @@ def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
     else:
         q = 0.5
 
-    # prevent overflow in sum_m2
-    data = data.astype(np.float32)
-
     # Initial estimation of sigma
     denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
     m = np.percentile(data, q * 100) / denom
+
+    # if the percentile is 0, then more than half of the slice is zero and give up
+    if m == 0:
+        warnings.warn("Initial estmated value of noise is 0 for current slice")
+        if return_mask:
+            return 0, np.zeros(data.shape[:-1], dtype=np.bool)
+
+        return 0
+
     phi = np.arange(1, l + 1) * m / l
     K = data.shape[-1]
-    sum_m2 = np.sum(data**2, axis=-1)
+    sum_m2 = np.sum(data**2, axis=-1, dtype=np.float32)
 
     sigma = np.zeros(phi.shape, dtype=phi.dtype)
     mask = np.zeros(phi.shape + data.shape[:-1])
@@ -389,4 +403,4 @@ def estimate_sigma(arr, disable_background_masking=False):
         mean_block = np.sqrt(6/7) * (arr[..., i] - 1/6 * conv_out)
         sigma[i] = np.sqrt(np.mean(mean_block[mask]**2))
 
-    return sigm
+    return sigma
