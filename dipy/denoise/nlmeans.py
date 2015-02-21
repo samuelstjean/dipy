@@ -1,7 +1,7 @@
 from __future__ import division, print_function
 
 import numpy as np
-from dipy.denoise.denspeed import nlmeans_3d, nlmeans_4d
+from dipy.denoise.denspeed import nlmeans_3d#, nlmeans_4d
 
 
 def nlmeans(arr, sigma, mask=None, patch_radius=1, block_radius=5, rician=True):
