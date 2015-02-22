@@ -97,7 +97,7 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
                                                           l=l,
                                                           itermax=itermax,
                                                           eps=eps,
-                                                          return_mask=return_mask)
+                                                          return_mask=True)
 
     else:
         sigma, mask_noise = _piesno_3D(data, N,
@@ -105,7 +105,7 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
                                        l=l,
                                        itermax=itermax,
                                        eps=eps,
-                                       return_mask=return_mask)
+                                       return_mask=True)
 
     if return_mask:
         return sigma, mask_noise
