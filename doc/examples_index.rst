@@ -34,14 +34,10 @@ Brain Extraction
 
 - :ref:`example_brain_extraction_dwi`
 
-Basic SNR estimation
-~~~~~~~~~~~~~~~~~~~~
+SNR estimation
+~~~~~~~~~~~~~~
 
 - :ref:`example_snr_in_cc`
-
-PIESNO
-~~~~~~
-- :ref:`example_piesno_sherbrooke`
 
 Denoising
 ~~~~~~~~~
