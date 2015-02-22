@@ -116,7 +116,7 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
 
     else:
         sigma, mask_noise = piesno_3D(data, N, alpha=alpha, l=l,
-                                      itermax=itermax, eps=eps)
+                                      itermax=itermax, eps=eps, return_mask=True)
 
     if return_mask:
         return sigma, mask_noise
@@ -124,7 +124,8 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
     return sigma
 
 
-def piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
+def piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
+              return_mask=False):
     """
     Probabilistic Identification and Estimation of Noise (PIESNO).
     This is the slice by slice version.
@@ -225,7 +226,8 @@ def piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5):
     return sigma
 
 
-def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False):
+def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
+               return_mask=False):
     """
     Probabilistic Identification and Estimation of Noise (PIESNO).
     This is the slice by slice version for working on a 4D array.
