@@ -15,15 +15,7 @@ def _inv_nchi_cdf(N, K, alpha):
 
 def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False):
     """
-    Probabilistic Identification and Estimation of Noise (PIESNO)
-    A routine for finding the underlying gaussian distribution standard
-    deviation from magnitude signals.
-
-    This function works slice by slice, iterating over the 3rd axis of the dataset
-    and returns an estimation of the noise for each slice.
-
-    This is a re-implementation of [1]_ and the second step in the
-    stabilisation framework of [2]_.
+    Probabilistic Identification and Estimation of Noise (PIESNO).
 
     Parameters
     -----------
@@ -33,6 +25,10 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
 
     N : int
         The number of phase array coils of the MRI scanner.
+        If your scanner does a SENSE reconstruction, ALWAYS use N=1, as the noise
+        profile is always Rician.
+        If your scanner does a GRAPPA reconstruction, set N as the number
+        of phase array coils.
 
     alpha : float
         Probabilistic estimation threshold for the gamma function.
@@ -57,7 +53,7 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
     sigma : float
         The estimated standard deviation of the gaussian noise.
 
-    mask (optional): ndarray
+    mask : ndarray
         A boolean mask indicating the voxels identified as pure noise.
 
     Note
@@ -65,6 +61,10 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
     This function assumes two things : 1. The data has a noisy, non-masked
     background and 2. The data is a repetition of the same measurements
     along the last axis, i.e. dMRI or fMRI data, not structural data like T1/T2.
+
+    This function processes the data slice by slice, as originally designed in
+    the paper. Use it to get a slice by slice estimation of the noise, as in
+    spinal cord imaging for example.
 
     References
     ------------
@@ -234,6 +234,7 @@ def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=Fa
                 break
 
             sig_prev = sig
+
             # Numpy percentile must range in 0 to 100, hence q*100
             sig = np.percentile(omega, q * 100) / denom
             omega_size = omega.size / K
