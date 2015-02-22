@@ -3,9 +3,9 @@ from __future__ import division, print_function
 import warnings
 import numpy as np
 
-from scipy.special import gammainccinv
 from scipy.ndimage.filters import convolve
-
+from scipy.special import gammainccinv
+from scipy.stats import mode
 
 def _inv_nchi_cdf(N, K, alpha):
     """Inverse CDF for the noncentral chi distribution
@@ -24,6 +24,213 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
 
     This is a re-implementation of [1]_ and the second step in the
     stabilisation framework of [2]_.
+
+    Parameters
+    -----------
+    data : ndarray
+        The magnitude signals to analyse. The last dimension must contain the
+        same realisation of the volume, such as dMRI or fMRI data.
+
+    N : int
+        The number of phase array coils of the MRI scanner.
+        If your scanner does a SENSE reconstruction, ALWAYS use N=1, as the noise
+        profile is always Rician.
+        If your scanner does a GRAPPA reconstruction, set N as the number
+        of phase array coils.
+
+
+    alpha : float
+        Probabilistic estimation threshold for the gamma function.
+
+    l : int
+        number of initial estimates for sigma to try.
+
+    itermax : int
+        Maximum number of iterations to execute if convergence
+        is not reached.
+
+    eps : float
+        Tolerance for the convergence criterion. Convergence is
+        reached if two subsequent estimates are smaller than eps.
+
+    return_mask : bool
+        If True, return a mask identyfing all the pure noise voxel
+        that were found.
+
+    Returns
+    --------
+    sigma : float
+        The estimated standard deviation of the gaussian noise.
+
+    mask (optional): ndarray
+        A boolean mask indicating the voxels identified as pure noise.
+
+    Note
+    ------
+    This function assumes two things : 1. The data has a noisy, non-masked
+    background and 2. The data is a repetition of the same measurements
+    along the last axis, i.e. dMRI or fMRI data, not structural data like T1/T2.
+
+    This function processes the data slice by slice, but makes a global
+    estimation of the noise. Use piesno_3D to get a slice by slice estimation
+    of the noise, as in spinal cord imaging for example.
+
+    References
+    ------------
+
+    .. [1] Koay CG, Ozarslan E and Pierpaoli C.
+    "Probabilistic Identification and Estimation of Noise (PIESNO):
+    A self-consistent approach and its applications in MRI."
+    Journal of Magnetic Resonance 2009; 199: 94-103.
+
+    .. [2] Koay CG, Ozarslan E and Basser PJ.
+    "A signal transformational framework for breaking the noise floor
+    and its applications in MRI."
+    Journal of Magnetic Resonance 2009; 197: 108-119.
+    """
+
+    # This method works on a 2D array with repetitions as the third dimension,
+    # so process the dataset slice by slice.
+
+    if data.ndim < 3:
+        e_s = "This function only works on datasets of at least 3 dimensions."
+        raise ValueError(e_s)
+
+    if data.ndim == 4:
+
+        sigma = np.zeros(data.shape[-2], dtype=np.float32)
+        mask_noise = np.zeros(data.shape[:-1], dtype=np.bool)
+
+        for idx in range(data.shape[-2]):
+            sigma[idx], mask_noise[..., idx] = piesno_3D(data[..., idx, :],
+                                                         N,
+                                                         alpha=alpha,
+                                                         l=l,
+                                                         itermax=itermax,
+                                                         eps=eps)
+
+        # Take the mode of all the sigmas from each slice as the best estimate,
+        # this should be stable with more or less 50% of the guesses at the
+        # same value.
+        sigma, num = mode(sigma, axis=None)
+
+    else:
+        sigma, mask_noise = piesno_3D(data, N, alpha=alpha, l=l,
+                                      itermax=itermax, eps=eps, return_mask=True)
+
+    if return_mask:
+        return sigma, mask_noise
+
+    return sigma
+
+
+def piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
+              return_mask=False):
+    """
+    Probabilistic Identification and Estimation of Noise (PIESNO).
+    This is the slice by slice version.
+
+    Parameters
+    -----------
+    data : ndarray
+        The magnitude signals to analyse. The last dimension must contain the
+        same realisation of the volume, such as dMRI or fMRI data.
+
+    N : int
+        The number of phase array coils of the MRI scanner.
+        If your scanner does a SENSE reconstruction, ALWAYS use N=1, as the noise
+        profile is always Rician.
+        If your scanner does a GRAPPA reconstruction, set N as the number
+        of phase array coils.
+
+    alpha : float
+        Probabilistic estimation threshold for the gamma function.
+
+    l : int
+        number of initial estimates for sigma to try.
+
+    itermax : int
+        Maximum number of iterations to execute if convergence
+        is not reached.
+
+    eps : float
+        Tolerance for the convergence criterion. Convergence is
+        reached if two subsequent estimates are smaller than eps.
+
+    return_mask : bool
+        If True, return a mask identyfing all the pure noise voxel
+        that were found.
+
+    Returns
+    --------
+    sigma : float
+        The estimated standard deviation of the gaussian noise.
+
+    mask : ndarray
+        A boolean mask indicating the voxels identified as pure noise.
+
+    Note
+    ------
+    This function assumes two things : 1. The data has a noisy, non-masked
+    background and 2. The data is a repetition of the same measurements
+    along the last axis, i.e. dMRI or fMRI data, not structural data like T1/T2.
+
+    This function processes the data slice by slice, as originally designed in
+    the paper. Use it to get a slice by slice estimation of the noise, as in
+    spinal cord imaging for example.
+
+    References
+    ------------
+
+    .. [1] Koay CG, Ozarslan E and Pierpaoli C.
+    "Probabilistic Identification and Estimation of Noise (PIESNO):
+    A self-consistent approach and its applications in MRI."
+    Journal of Magnetic Resonance 2009; 199: 94-103.
+
+    .. [2] Koay CG, Ozarslan E and Basser PJ.
+    "A signal transformational framework for breaking the noise floor
+    and its applications in MRI."
+    Journal of Magnetic Resonance 2009; 197: 108-119.
+    """
+
+    # This method works on a 2D array with repetitions as the third dimension,
+    # so process the dataset slice by slice.
+
+    if data.ndim < 3:
+        raise ValueError("This function only works on datasets of at least 3 dimensions.")
+
+    if data.ndim == 4:
+
+        sigma = np.zeros(data.shape[-2], dtype=np.float32)
+        mask_noise = np.zeros(data.shape[:-1], dtype=np.bool)
+
+        for idx in range(data.shape[-2]):
+            sigma[idx], mask_noise[..., idx] = _piesno_3D(data[..., idx, :], N,
+                                                          alpha=alpha,
+                                                          l=l,
+                                                          itermax=itermax,
+                                                          eps=eps,
+                                                          return_mask=return_mask)
+
+    else:
+        sigma, mask_noise = _piesno_3D(data, N,
+                                       alpha=alpha,
+                                       l=l,
+                                       itermax=itermax,
+                                       eps=eps,
+                                       return_mask=return_mask)
+
+    if return_mask:
+        return sigma, mask_noise
+
+    return sigma
+
+
+def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
+               return_mask=False):
+    """
+    Probabilistic Identification and Estimation of Noise (PIESNO).
+    This is the slice by slice version for working on a 4D array.
 
     Parameters
     -----------
@@ -57,7 +264,7 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
     sigma : float
         The estimated standard deviation of the gaussian noise.
 
-    mask (optional): ndarray
+    mask : ndarray
         A boolean mask indicating the voxels identified as pure noise.
 
     Note
@@ -234,6 +441,7 @@ def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=Fa
                 break
 
             sig_prev = sig
+
             # Numpy percentile must range in 0 to 100, hence q*100
             sig = np.percentile(omega, q * 100) / denom
             omega_size = omega.size / K
@@ -245,25 +453,18 @@ def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=Fa
 
         sigma[num] = sig
         mask[num] = idx
-
-    if return_mask:
-        return sigma[pos], mask[pos]
-
-    return sigma[pos]
+    return sigma[pos], mask[pos]
 
 
 def estimate_sigma(arr, disable_background_masking=False):
     """Standard deviation estimation from local patches
-
     Parameters
     ----------
     arr : 3D or 4D ndarray
         The array to be estimated
-
     disable_background_masking : bool, default False
         If True, uses all voxels for the estimation, otherwise, only non-zeros voxels are used.
         Useful if the background is masked by the scanner.
-
     Returns
     -------
     sigma : ndarray
