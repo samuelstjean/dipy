@@ -29,13 +29,21 @@ from numpy import concatenate, diag, diff, empty, eye, sqrt, unique, dot
 from numpy.linalg import pinv, svd
 from numpy.random import randint
 from dipy.reconst.odf import OdfModel, OdfFit
-from scipy.special import sph_harm, lpn
+from scipy.special import sph_harm, lpn, lpmv, gammaln
 from dipy.core.sphere import Sphere
 import dipy.core.gradients as grad
 from dipy.sims.voxel import single_tensor, all_tensor_evecs
 from dipy.core.geometry import cart2sphere
 from dipy.core.onetime import auto_attr
 from dipy.reconst.cache import Cache
+
+from distutils.version import StrictVersion
+import scipy
+
+if StrictVersion(scipy.version.short_version) >= StrictVersion('0.15.0'):
+    SCIPY_15_PLUS = True
+else:
+    SCIPY_15_PLUS = False
 
 
 def _copydoc(obj):
@@ -149,10 +157,48 @@ def gen_dirac(m, n, theta, phi):
     return real_sph_harm(m, n, theta, phi)
 
 
-def real_sph_harm(m, n, theta, phi):
+def spherical_harmonics(m, n, theta, phi):
+    r""" Compute spherical harmonics
+
+    This may take scalar or array arguments. The inputs will be broadcasted
+    against each other.
+
+    Parameters
+    ----------
+    m : int ``|m| <= n``
+        The order of the harmonic.
+    n : int ``>= 0``
+        The degree of the harmonic.
+    theta : float [0, 2*pi]
+        The azimuthal (longitudinal) coordinate.
+    phi : float [0, pi]
+        The polar (colatitudinal) coordinate.
+
+    Returns
+    -------
+    y_mn : complex float
+        The harmonic $Y^m_n$ sampled at `theta` and `phi`.
+
+    Notes
+    -----
+    This is a faster implementation of scipy.special.sph_harm for
+    scipy version < 0.15.0.
+
     """
-    Compute real spherical harmonics, where the real harmonic $Y^m_n$ is
-    defined to be:
+    if SCIPY_15_PLUS:
+        return sph_harm(m, n, theta, phi)
+    x = np.cos(phi)
+    val = lpmv(m, n, x).astype(complex)
+    val *= np.sqrt((2 * n + 1) / 4.0 / np.pi)
+    val *= np.exp(0.5 * (gammaln(n - m + 1) - gammaln(n + m + 1)))
+    val = val * np.exp(1j * m * theta)
+    return val
+
+
+def real_sph_harm(m, n, theta, phi):
+    r""" Compute real spherical harmonics.
+
+    Where the real harmonic $Y^m_n$ is defined to be:
 
         Real($Y^m_n$) * sqrt(2) if m > 0
         $Y^m_n$                 if m == 0
@@ -183,7 +229,8 @@ def real_sph_harm(m, n, theta, phi):
     """
     # dipy uses a convention for theta and phi that is reversed with respect to
     # function signature of scipy.special.sph_harm
-    sh = sph_harm(np.abs(m), n, phi, theta)
+    sh = spherical_harmonics(np.abs(m), n, phi, theta)
+
     real_sh = np.where(m > 0, sh.imag, sh.real)
     real_sh *= np.where(m == 0, 1., np.sqrt(2))
     return real_sh
@@ -400,12 +447,47 @@ def _gfa_sh(coef, sh0_index=0):
 
     """
     coef_sq = coef**2
-    return np.sqrt(1. - (coef_sq[..., sh0_index] / (coef_sq).sum(-1)))
+    numer = coef_sq[..., sh0_index]
+    denom = (coef_sq).sum(-1)
+    # The sum of the square of the coefficients being zero is the same as all
+    # the coefficients being zero
+    allzero = denom == 0
+    # By adding 1 to numer and denom where both and are 0, we prevent 0/0
+    numer = numer + allzero
+    denom = denom + allzero
+    return np.sqrt(1. - (numer / denom))
 
 
 class SphHarmModel(OdfModel, Cache):
-    """The base class to sub-classed by specific spherical harmonic models of
-    diffusion data"""
+    """To be subclassed by all models that return a SphHarmFit when fit."""
+
+    def sampling_matrix(self, sphere):
+        """The matrix needed to sample ODFs from coefficients of the model.
+
+        Parameters
+        ----------
+        sphere : Sphere
+            Points used to sample ODF.
+
+        Returns
+        -------
+        sampling_matrix : array
+            The size of the matrix will be (N, M) where N is the number of
+            vertices on sphere and M is the number of coefficients needed by
+            the model.
+        """
+        sampling_matrix = self.cache_get("sampling_matrix", sphere)
+        if sampling_matrix is None:
+            sh_order = self.sh_order
+            theta = sphere.theta
+            phi = sphere.phi
+            sampling_matrix, m, n = real_sym_sh_basis(sh_order, theta, phi)
+            self.cache_set("sampling_matrix", sphere, sampling_matrix)
+        return sampling_matrix
+
+
+class QballBaseModel(SphHarmModel):
+    """To be subclassed by Qball type models."""
     def __init__(self, gtab, sh_order, smooth=0.006, min_signal=1.,
                  assume_normed=False):
         """Creates a model that can be used to fit or sample diffusion data
@@ -432,7 +514,7 @@ class SphHarmModel(OdfModel, Cache):
         normalize_data
 
         """
-        OdfModel.__init__(self, gtab)
+        SphHarmModel.__init__(self, gtab)
         self._where_b0s = lazy_index(gtab.b0s_mask)
         self._where_dwi = lazy_index(~gtab.b0s_mask)
         self.assume_normed = assume_normed
@@ -470,44 +552,6 @@ class SphHarmModel(OdfModel, Cache):
         return SphHarmFit(self, coef, mask)
 
 
-def _shm_predict(fit, gtab, S0=1):
-    """
-    Helper function for the implementation of model prediction from the
-    ConstrainedSphericalDeconvFit class. This is necessary, because in
-    multi-voxel data, the multi_vox_fit kicks in.
-
-    Parameters
-    ----------
-    fit : A ConstrainedSphericalDeconvFit class instance
-        The prediction will be done using the parameters in this object.
-    gtab : A GradientTable class instance
-        The prediction will be done for the bval/bvec combinations in this
-        object.
-    S0 : float or ndarray (optional)
-        The mean non-diffusion weighted signal in the voxel or volume.
-
-    Returns
-    -------
-    pred_sig : ndarray
-        The predicted signal in the gtab for this fit.
-    """
-    sphere = Sphere(xyz=gtab.bvecs[~gtab.b0s_mask])
-    prediction_matrix = fit.prediction_matrix(sphere, gtab)
-
-    if np.iterable(S0):
-        # If it's an array, we need to give it one more dimension:
-        S0 = S0[..., None]
-
-    # This is the key operation: convolve and multiply by S0:
-    pre_pred_sig = S0 * np.dot(prediction_matrix, fit._shm_coef)
-    # Now put everything in its right place:
-    pred_sig = np.zeros(pre_pred_sig.shape[:-1] + (gtab.bvals.shape[0],))
-    pred_sig[..., ~gtab.b0s_mask] = pre_pred_sig
-    pred_sig[..., gtab.b0s_mask] = S0
-
-    return pred_sig
-
-
 class SphHarmFit(OdfFit):
     """Diffusion data fit to a spherical harmonic model"""
 
@@ -538,7 +582,6 @@ class SphHarmFit(OdfFit):
 
         return SphHarmFit(self.model, new_coef, new_mask)
 
-
     def odf(self, sphere):
         """Samples the odf function on the points of a sphere
 
@@ -553,20 +596,12 @@ class SphHarmFit(OdfFit):
             The value of the odf on each point of `sphere`.
 
         """
-        sampling_matrix = self.model.cache_get("sampling_matrix", sphere)
-        if sampling_matrix is None:
-            phi = sphere.phi.reshape((-1, 1))
-            theta = sphere.theta.reshape((-1, 1))
-            sh_order = self.model.sh_order
-            sampling_matrix, m, n = real_sym_sh_basis(sh_order, theta, phi)
-            self.model.cache_set("sampling_matrix", sphere, sampling_matrix)
-        return dot(self._shm_coef, sampling_matrix.T)
-
+        B = self.model.sampling_matrix(sphere)
+        return dot(self._shm_coef, B.T)
 
     @auto_attr
     def gfa(self):
         return _gfa_sh(self._shm_coef, 0)
-
 
     @property
     def shm_coeff(self):
@@ -579,32 +614,7 @@ class SphHarmFit(OdfFit):
         return self._shm_coef
 
 
-    def prediction_matrix(self, sphere, gtab):
-        """
-        A matrix used to predict the signal from an estimated ODF
-
-        Parameters
-        ----------
-        sphere : a Sphere class instance
-        gtab : a GradientTable class instance
-        """
-        prediction_matrix = self.model.cache_get("prediction_matrix", (sphere,
-                                                                       gtab))
-        if prediction_matrix is None:
-            pred_gtab = grad.gradient_table(
-                gtab.bvals[~gtab.b0s_mask],
-                gtab.bvecs[~gtab.b0s_mask])
-            x, y, z = pred_gtab.gradients.T
-            r, theta, phi = cart2sphere(x, y, z)
-            SH_basis, m, n = real_sym_sh_basis(self.model.sh_order, theta, phi)
-            # The prediction matrix needs to be normalized to the response S0:
-            prediction_matrix = (np.dot(SH_basis, self.model.R) /
-                                 self.model.response[1])
-
-        return prediction_matrix
-
-
-    def predict(self, gtab, S0=1.0):
+    def predict(self, gtab=None, S0=1.0):
         """
         Predict the diffusion signal from the model coefficients.
 
@@ -618,10 +628,13 @@ class SphHarmFit(OdfFit):
            all voxels
 
         """
-        return _shm_predict(self, gtab, S0)
+        if not hasattr(self.model, 'predict'):
+            msg = "This model does not have prediction implemented yet"
+            raise NotImplementedError(msg)
+        return self.model.predict(self.shm_coeff, gtab, S0)
 
 
-class CsaOdfModel(SphHarmModel):
+class CsaOdfModel(QballBaseModel):
     """Implementation of Constant Solid Angle reconstruction method.
 
     References
@@ -651,7 +664,7 @@ class CsaOdfModel(SphHarmModel):
         return sh_coef
 
 
-class OpdtModel(SphHarmModel):
+class OpdtModel(QballBaseModel):
     """Implementation of Orientation Probability Density Transform
     reconstruction method.
 
@@ -684,7 +697,7 @@ def _slowadc_formula(data, delta_b, delta_q):
     return dot(logd * (1.5 - logd) * data, delta_q.T) - dot(data, delta_b.T)
 
 
-class QballModel(SphHarmModel):
+class QballModel(QballBaseModel):
     """Implementation of regularized Qball reconstruction method.
 
     References
