@@ -51,7 +51,7 @@ print('Computing tensors...')
 tenmodel = TensorModel(gtab)
 tensorfit = tenmodel.fit(data, mask=mask)
 
-"""Next, we set our red-blue-green thresholds to (0.6, 1) in the x axis
+"""Next, we set our red-green-blue thresholds to (0.6, 1) in the x axis
 and (0, 0.1) in the y and z axes respectively.
 These values work well in practice to isolate the very RED voxels of the cfa map.
 
@@ -130,6 +130,7 @@ mask_noise_img = nib.Nifti1Image(mask_noise.astype(np.uint8), affine)
 nib.save(mask_noise_img, 'mask_noise.nii.gz')
 
 noise_std = np.std(data[mask_noise, :])
+print('Noise standard deviation sigma= ', noise_std)
 
 """We can now compute the SNR for each DWI. For example, report SNR
 for DW images with gradient direction that lies the closest to
