@@ -1,55 +1,44 @@
-""" mpmath hyp1f1 algorithm crudely ported """
+# cython: boundcheck=False, wraparound=False, cdivision=True, profile=True
 
 from __future__ import division
 
 import math
 import cmath
 import operator
-
 import numpy as np
-cimport numpy as cnp
+
+cimport numpy as np
 cimport cython
 
-import scipy.special as sps
 
-DEF eps = 1e-8
-DEF H_FACTOR = 3.0517578125e-05
-DEF pi = 3.141592653589793
-
-class NoConvergence(Exception):
-    raise ValueError("Hypergeometric serie did not converge :(")
-
-
-cdef double hypsum(int p, int q, coeffs, double z, int maxterms=6000):
+cdef double hypsum(int p, int q, list coeffs, double z, int maxterms=6000):
 
     cdef:
         int k = 0, i
-        double s = 1., t = 1.
-
-    coeffs = list(coeffs)
-    num = range(p)
-    den = range(p,p+q)
+        double s = 1., t = 1., eps = np.finfo(np.float64).eps
+        list num = range(p)
+        list den = range(p, p + q)
 
     while True:
 
-        for i in num: t *= (coeffs[i]+k)
-        for i in den: t /= (coeffs[i]+k)
+        for i in num: t *= (coeffs[i] + k)
+        for i in den: t /= (coeffs[i] + k)
 
         k += 1; t /= k; t *= z; s += t
 
-        if abs(t) < eps:
+        if math.fabs(t) < eps:
             return s
 
         if k > maxterms:
-            raise NoConvergence
+            raise ValueError("Hypergeometric serie did not converge")
 
 
 cdef double mag(z):
-        return np.frexp(abs(z))[1]
+        return np.frexp(math.fabs(z))[1]
 
 
-cdef expjpi(x):
-    return exp(1j * pi * x)
+cdef expjpi(double x):
+    return exp(1j * np.pi * x)
 
 
 cdef exp(x):
@@ -59,11 +48,11 @@ cdef exp(x):
         return cmath.exp(x)
 
 
-def power(*args):
-    try:
-        return operator.pow(*(float(x) for x in args))
-    except (TypeError, ValueError):
-        return operator.pow(*(complex(x) for x in args))
+# cdef power(*args):
+#     try:
+#         return operator.pow(*(float(x) for x in args))
+#     except (TypeError, ValueError):
+#         return operator.pow(*(complex(x) for x in args))
 
 
 cdef isnpint(x):
@@ -75,24 +64,25 @@ cdef isnpint(x):
 
 
 cdef nint_distance(z):
-    cdef int n
-    n = round(z.real)
+    cdef int n = round(z.real)
+
     if n == z:
         return n, -np.inf
-    return n, mag(abs(z-n))
+    return n, mag(math.fabs(z-n))
 
 
-cdef _check_need_perturb(terms, int discard_known_zeros):
+cdef _check_need_perturb(terms, bint discard_known_zeros):
 
     cdef:
-        int perturb, have_singular_nongamma_weight, n
-        double d
+        bint perturb = False
+        bint have_singular_nongamma_weight = False
+        int n, i, term_index, data_index
+        # double w_s, c_s, alpha_s, beta_s, a_s, b_s, z, d, x
+        int [::1] discard = np.array([], dtype=np.int32)
+        int [::1] pole_count = np.zeros(3, dtype=np.int32)
 
-    perturb = False
-    discard = []
     for term_index, term in enumerate(terms):
         w_s, c_s, alpha_s, beta_s, a_s, b_s, z = term
-        have_singular_nongamma_weight = False
         # Avoid division by zero in leading factors (TODO:
         # also check for near division by zero?)
         for k, w in enumerate(w_s):
@@ -100,7 +90,7 @@ cdef _check_need_perturb(terms, int discard_known_zeros):
                 if np.real(c_s[k]) <= 0 and c_s[k]:
                     perturb = True
                     have_singular_nongamma_weight = True
-        pole_count = [0, 0, 0]
+
         # Check for gamma and series poles and near-poles
         for data_index, data in enumerate([alpha_s, beta_s, b_s]):
             for i, x in enumerate(data):
@@ -121,56 +111,83 @@ cdef _check_need_perturb(terms, int discard_known_zeros):
             pole_count[1] > pole_count[0] + pole_count[2] and
             not have_singular_nongamma_weight):
             discard.append(term_index)
-        elif sum(pole_count):
+        elif np.sum(pole_count):
             perturb = True
     return perturb, discard
 
 
-cdef  double hypercomb(function, params=[], int discard_known_zeros=True):
+cdef  double hypercomb(function, double [::1] params, bint discard_known_zeros=True):
     cdef:
-        int discard, perturb
-        double h, sumvalue
+        bint perturb
+        int discard, k, term_index
+        double [::1] evaluated_terms = np.array([], dtype=np.int32)
+        double h = 3.0517578125e-05
+        # double sumvalue, w_s, c_s, alpha_s, beta_s, a_s, b_s, z, term_data, i
 
-    params = params[:]
     terms = function(*params)
     perturb, discard =  _check_need_perturb(terms, discard_known_zeros)
     if perturb:
-        h = H_FACTOR
         for k in range(len(params)):
             params[k] += h
             # Heuristically ensure that the perturbations
             # are "independent" so that two perturbations
             # don't accidentally cancel each other out
             # in a subtraction.
-            h += h/(k+1)
+            h += h / ( k + 1)
         terms = function(*params)
     if discard_known_zeros:
         terms = [term for (i, term) in enumerate(terms) if i not in discard]
     if not terms:
         return 0.
-    evaluated_terms = []
+
     for term_index, term_data in enumerate(terms):
         w_s, c_s, alpha_s, beta_s, a_s, b_s, z = term_data
         # Always hyp2f0
         assert len(a_s) == 2
         assert len(b_s) == 0
         v = np.prod([hypsum(2, 0, a_s, z)] + \
-            [sps.gamma(a) for a in alpha_s] + \
-            [sps.rgamma(b) for b in beta_s] + \
-            [power(w, c) for (w,c) in zip(w_s,c_s)])
+            [math.gamma(a) for a in alpha_s] + \
+            [1. / math.gamma(b) for b in beta_s] + \
+            [w**c for (w,c) in zip(w_s,c_s)])
         evaluated_terms.append(v)
 
     if len(terms) == 1 and (not perturb):
         return evaluated_terms[0]
 
-    sumvalue = sum(evaluated_terms)
+    sumvalue = np.sum(evaluated_terms)
     return sumvalue
 
 
-cdef double _hyp1f1(double a, int b, double z):
+# cdef double _hyp1f1(double a, double b, double z):
+#     cdef:
+#         double magz, rz, v
+#         double [::1] arr = np.array([a,b], dtype=np.float64)
 
-    cdef:
-        double magz, rz, v
+#     magz = mag(z)
+
+#     if magz >= 7:
+#         try:
+
+#             def h(a,b):
+#                 E = expjpi(a)
+#                 rz = 1./z
+#                 T1 = ([E,z], [1,-a], [b], [b-a], [a, 1+a-b], [], -rz)
+#                 T2 = ([exp(z),z], [1,a-b], [b], [a], [b-a, 1-a], [], rz)
+#                 return T1, T2
+
+#             v = hypercomb(h, arr)
+#             return np.real(v)
+
+#         except ValueError("Hypergeometric serie did not converge"):
+#             pass
+
+#     return hypsum(1, 1, [a, b], z)
+
+
+# def  hyp1f1(a, b, z):
+#     return _hyp1f1(a, b, z)
+
+def hyp1f1(a, b, z):
 
     magz = mag(z)
 
@@ -184,14 +201,10 @@ cdef double _hyp1f1(double a, int b, double z):
                 T2 = ([exp(z),z], [1,a-b], [b], [a], [b-a, 1-a], [], rz)
                 return T1, T2
 
-            v = hypercomb(h, [a,b])
+            v = hypercomb(h, np.array([a,b], dtype=np.float64))
             return np.real(v)
 
-        except NoConvergence:
+        except ValueError("Hypergeometric serie did not converge"):
             pass
 
     return hypsum(1, 1, [a, b], z)
-
-
-def  hyp1f1(a, b, z):
-    return _hyp1f1(a, b, z)
