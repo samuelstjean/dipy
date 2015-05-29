@@ -120,7 +120,7 @@ cdef  double hypercomb(function, double [::1] params, bint discard_known_zeros=T
     cdef:
         bint perturb
         int discard, k, term_index
-        double [::1] evaluated_terms = np.array([], dtype=np.int32)
+        double [::1] evaluated_terms = np.array([], dtype=np.float64)
         double h = 3.0517578125e-05
         # double sumvalue, w_s, c_s, alpha_s, beta_s, a_s, b_s, z, term_data, i
 
