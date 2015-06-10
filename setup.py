@@ -126,7 +126,7 @@ except ImportError: # No nibabel
         raise RuntimeError(msg + " or try 'python setup_egg.py install'")
 else: # We have nibabel
     pybuilder = get_comrec_build('dipy')
-    # Cython is a dependency for building extensions, iff we don't have stamped
+    # Cython is a dependency for building extensions, if we don't have stamped
     # up pyx and c files.
     build_ext = cyproc_exts(EXTS, CYTHON_MIN_VERSION, 'pyx-stamps')
     # Add openmp flags if they work
