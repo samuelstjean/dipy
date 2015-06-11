@@ -1,15 +1,11 @@
-# cython: boundcheck=False, wraparound=False, cdivision=True, profile=True
+# cython: boundcheck=False, wraparound=False, cdivision=True
 
 from __future__ import division
 
 import cmath
-# from cmath import cexp
-from libc.math cimport fabs, tgamma, exp, round, floor
-# from libc cimport cmath
-# import operator
+import operator
+from libc.math cimport fabs, tgamma, exp, floor
 import numpy as np
-# from scipy.special import gamma, rgamma
-
 cimport numpy as np
 cimport cython
 
@@ -33,11 +29,12 @@ cdef double hypsum1f1(double a, int b, double z, int maxterms=6000):
         if fabs(t) < eps:
             return s
 
+        # Did not converge
         if k > maxterms:
-            raise ValueError("Hypergeometric serie did not converge")
+            return -np.inf
 
 
-cdef double hypsum(double a, double b, double z, int maxterms=6000):
+cdef double hypsum2f0(double a, double b, double z, int maxterms=6000):
 
     cdef:
         int k = 0
@@ -55,12 +52,20 @@ cdef double hypsum(double a, double b, double z, int maxterms=6000):
         if fabs(t) < eps:
             return s
 
+        # Did not converge
         if k > maxterms:
-            raise ValueError("Hypergeometric serie did not converge")
+            return -np.inf
 
 
 cdef double mag(z):
         return np.frexp(fabs(z))[1]
+
+
+cdef power(a, b):
+    try:
+        return operator.pow(float(a), float(b))
+    except (TypeError, ValueError):
+        return operator.pow(complex(a), complex(b))
 
 
 cdef bint isnpint(x):
@@ -68,7 +73,7 @@ cdef bint isnpint(x):
         if x.imag:
             return False
         x = x.real
-    return x <= 0.0 and round(x) == x
+    return x <= 0.0 and floor(x) == x
 
 
 cdef nint_distance(z):
@@ -85,12 +90,14 @@ cdef _check_need_perturb(terms, bint discard_known_zeros):
         bint perturb = False
         bint have_singular_nongamma_weight = False
         int n, i, k, term_index, data_index
+        double z, d, x
         # double w_s, c_s, alpha_s, beta_s, a_s, b_s, z, d, x
         # double [::1] discard = np.array([], dtype=np.float64)
         # double [::1] term = np.array([], dtype=np.float64)
         # double [::1] data = np.array([], dtype=np.float64)
         int [::1] pole_count = np.zeros(3, dtype=np.int32)
-    discard=[]
+
+    discard = []
     for term_index, term in enumerate(terms):
         w_s, c_s, alpha_s, beta_s, a_s, b_s, z = term
         # Avoid division by zero in leading factors (TODO:
@@ -126,12 +133,12 @@ cdef _check_need_perturb(terms, bint discard_known_zeros):
     return perturb, discard
 
 
-
 cdef double hypercomb(function, params, bint discard_known_zeros=True):
     cdef:
         bint perturb
         int k
         double h = 3.0517578125e-05
+        double v, z
         # list evaluated_terms
         # double w_s, c_s, alpha_s, beta_s, a_s, b_s, z
         # double evaluated_terms = np.array([], dtype=np.float64)
@@ -157,10 +164,15 @@ cdef double hypercomb(function, params, bint discard_known_zeros=True):
         # Always hyp2f0
         assert len(a_s) == 2
         assert len(b_s) == 0
-        v = np.prod([hypsum(a_s[0], a_s[1], z)] + \
+        v = np.prod([hypsum2f0(a_s[0], a_s[1], z)] + \
             [tgamma(a) for a in alpha_s] + \
             [1/tgamma(b) for b in beta_s] + \
-            [w**c for (w,c) in zip(w_s,c_s)])
+            [power(w, c) for (w,c) in zip(w_s,c_s)])
+
+        # hypsum2f0 did not converge
+        if np.isinf(v):
+            return v
+
         evaluated_terms.append(v)
 
     if len(terms) == 1 and (not perturb):
@@ -174,7 +186,7 @@ def hyp1f1(a, b, z):
     magz = mag(z)
 
     if magz >= 7:
-        try:
+        # try:
 
             def h(a, b):
                 E = cmath.exp(1j * np.pi * a)
@@ -186,7 +198,7 @@ def hyp1f1(a, b, z):
             v = hypercomb(h, [a, b])
             return np.real(v)
 
-        except ValueError("Hypergeometric serie did not converge"):
-            pass
+        # except ValueError("Hypergeometric serie did not converge"):
+        #     pass
 
     return hypsum1f1(a, b, z)
