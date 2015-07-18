@@ -12,7 +12,7 @@ cdef class TissueClassifier:
         double threshold, interp_out_double[1]
         double[::1]  interp_out_view
         double[:, :, :] metric_map
-    cpdef TissueClass check_point(self, double[::1] point) except PYERROR
+    cpdef TissueClass check_point(self, double[::1] point)
 
 
 cdef class ThresholdTissueClassifier(TissueClassifier):
