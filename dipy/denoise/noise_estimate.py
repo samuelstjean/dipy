@@ -91,15 +91,12 @@ def piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=Fals
     else:
         q = 0.5
 
-    # prevent overflow in sum_m2
-    data = data.astype(np.float32)
-
     # Initial estimation of sigma
     denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
     m = np.percentile(data, q * 100) / denom
     phi = np.arange(1, l + 1) * m / l
     K = data.shape[-1]
-    sum_m2 = np.sum(data**2, axis=-1)
+    sum_m2 = np.sum(data**2, axis=-1, dtype=np.float32)
 
     sigma = np.zeros_like(phi)
     mask = np.zeros(phi.shape + data.shape[:-1])
