@@ -111,9 +111,6 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False,
     # Initial estimation of sigma
     initial_estimation = np.percentile(data, q * 100) / np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
 
-    if n_cores is None:
-        n_cores = cpu_count()
-
     if data.ndim == 4:
 
         sigma = np.zeros(data.shape[-2], dtype=np.float32)
@@ -128,6 +125,9 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False,
                           repeat(eps), 
                           repeat(return_mask), 
                           repeat(initial_estimation))]
+                          
+        if n_cores is None:
+            n_cores = cpu_count()
 
         pool = Pool(processes=n_cores)
         result = pool.map(_piesno_multiprocess, arglist)
