@@ -5,6 +5,9 @@ import numpy as np
 from scipy.special import gammainccinv
 from scipy.ndimage.filters import convolve
 
+from multiprocessing import Pool, cpu_count
+from itertools import repeat
+
 
 def _inv_nchi_cdf(N, K, alpha):
     """Inverse CDF for the noncentral chi distribution
@@ -24,7 +27,7 @@ opt_quantile = {1: 0.79681213002002,
               128: 0.5322811923303339}
 
 
-def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False):
+def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False, n_cores=None):
     """
     Probabilistic Identification and Estimation of Noise (PIESNO).
 
@@ -58,6 +61,9 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
     return_mask : bool
         If True, return a mask identyfing all the pure noise voxel
         that were found.
+        
+    n_cores : int
+        Number of cores to use for multiprocessing. Default : all cores are used.
 
     Returns
     --------
@@ -105,20 +111,31 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
     # Initial estimation of sigma
     initial_estimation = np.percentile(data, q * 100) / np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
 
+    if n_cores is None:
+        n_cores = cpu_count()
+
     if data.ndim == 4:
 
         sigma = np.zeros(data.shape[-2], dtype=np.float32)
         mask_noise = np.zeros(data.shape[:-1], dtype=np.bool)
 
-        for idx in range(data.shape[-2]):
-            sigma[idx], mask_noise[..., idx] = _piesno_3D(data[..., idx, :], N,
-                                                          alpha=alpha,
-                                                          l=l,
-                                                          itermax=itermax,
-                                                          eps=eps,
-                                                          return_mask=True,
-                                                          initial_estimation=initial_estimation)
+        arglist = [(data[..., i, :], _N, _l, _itermax, _eps, _return_mask, _initial_estimation)
+                   for i, _N, _l, _itermax, _eps, _return_mask, _initial_estimation
+                   in zip(range(data.shape[-2]),
+                          repeat(N), 
+                          repeat(l), 
+                          repeat(itermax), 
+                          repeat(eps), 
+                          repeat(return_mask), 
+                          repeat(initial_estimation))]
 
+        pool = Pool(processes=n_cores)
+        result = pool.map(_piesno_multiprocess, arglist)
+        pool.close()
+        pool.join()
+
+        for i in range(len(result)):
+            sigma[:, : , i], mask_noise[..., i] = result[i]
     else:
         sigma, mask_noise = _piesno_3D(data, N,
                                        alpha=alpha,
@@ -133,6 +150,20 @@ def piesno(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False)
 
     return sigma
 
+
+def _piesno_multiprocess(arglist):
+
+    data, N, alpha, l, itermax, eps, return_mask, initial_estimation = arglist
+
+    sigma, mask_noise = _piesno_3D(data, N,
+                                   alpha=alpha,
+                                   l=l,
+                                   itermax=itermax,
+                                   eps=eps,
+                                   return_mask=True,
+                                   initial_estimation=initial_estimation)
+
+    return sigma, mask_noise
 
 def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
                return_mask=False, initial_estimation=None):
