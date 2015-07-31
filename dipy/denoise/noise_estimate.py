@@ -12,7 +12,7 @@ def _inv_nchi_cdf(N, K, alpha):
     return gammainccinv(N * K, 1 - alpha) / K
 
 
-def piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False):
+def piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False, init=None):
     """
     Probabilistic Identification and Estimation of Noise (PIESNO)
     A routine for finding the underlying gaussian distribution standard
@@ -93,7 +93,11 @@ def piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=Fals
 
     # Initial estimation of sigma
     denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
-    m = np.percentile(data, q * 100) / denom
+
+    if init is None:
+        m = np.percentile(data, q * 100) / denom
+    else:
+        m = init / denom
     phi = np.arange(1, l + 1) * m / l
     K = data.shape[-1]
     sum_m2 = np.sum(data**2, axis=-1, dtype=np.float32)
