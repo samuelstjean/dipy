@@ -829,15 +829,68 @@ def auto_response(gtab, data, roi_center=None, roi_radius=10, fa_thr=0.7,
 
     lambdas = tenfit.evals[indices][:, :2]
     S0s = roi[indices][:, np.nonzero(gtab.b0s_mask)[0]]
+
+    response, ratio = _get_response(S0s, lambdas)
+
+    if return_number_of_voxels:
+        return response, ratio, indices[0].size
+
+    return response, ratio
+
+
+def response_from_mask(gtab, data, mask):
+    """ Estimate the response function from a given mask.
+
+    Parameters
+    ----------
+    gtab : GradientTable
+    data : ndarray
+        Diffusion data
+    mask : ndarray
+        Mask to use for the estimation of the response function. For example a
+        mask of the white matter voxels with FA values higher than 0.7
+        (see [1]_).
+
+    Returns
+    -------
+    response : tuple, (2,)
+        (`evals`, `S0`)
+    ratio : float
+        The ratio between smallest versus largest eigenvalue of the response.
+
+    Notes
+    -----
+    See csdeconv.auto_response() or csdeconv.recursive_response() if you don't
+    have a computed mask for the response function estimation.
+
+    References
+    ----------
+    .. [1] Tournier, J.D., et al. NeuroImage 2004. Direct estimation of the
+    fiber orientation density function from diffusion-weighted MRI
+    data using spherical deconvolution
+    """
+
+    ten = TensorModel(gtab)
+    indices = np.where(mask > 0)
+
+    if indices[0].size == 0:
+        msg = "No voxel in mask with value > 0 were found."
+        warnings.warn(msg, UserWarning)
+        return (np.nan, np.nan), np.nan
+
+    tenfit = ten.fit(data[indices])
+    lambdas = tenfit.evals[:, :2]
+    S0s = data[indices][:, np.nonzero(gtab.b0s_mask)[0]]
+
+    return _get_response(S0s, lambdas)
+
+
+def _get_response(S0s, lambdas):
     S0 = np.mean(S0s)
     l01 = np.mean(lambdas, axis=0)
     evals = np.array([l01[0], l01[1], l01[1]])
     response = (evals, S0)
     ratio = evals[1] / evals[0]
-
-    if return_number_of_voxels:
-        return response, ratio, indices[0].size
-
     return response, ratio
 
 

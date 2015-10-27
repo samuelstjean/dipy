@@ -7,8 +7,8 @@ docs.  In setup.py in particular, we exec this file, so it cannot import dipy
 # full release.  '.dev' as a _version_extra string means this is a development
 # version
 _version_major = 0
-_version_minor = 9
-_version_micro = 3
+_version_minor = 10
+_version_micro = 0
 _version_extra = 'dev'
 #_version_extra = ''
 
@@ -86,7 +86,7 @@ NIBABEL_MIN_VERSION='1.2.0'
 # Main setup parameters
 NAME                = 'dipy'
 MAINTAINER          = "Eleftherios Garyfallidis"
-MAINTAINER_EMAIL    = "nipy-devel@neuroimaging.scipy.org"
+MAINTAINER_EMAIL    = "neuroimaging@python.org"
 DESCRIPTION         = description
 LONG_DESCRIPTION    = long_description
 URL                 = "http://dipy.org"
@@ -94,7 +94,7 @@ DOWNLOAD_URL        = "http://github.com/nipy/dipy/archives/master"
 LICENSE             = "BSD license"
 CLASSIFIERS         = CLASSIFIERS
 AUTHOR              = "dipy developers"
-AUTHOR_EMAIL        = "nipy-devel@neuroimaging.scipy.org"
+AUTHOR_EMAIL        = "neuroimaging@python.org"
 PLATFORMS           = "OS Independent"
 MAJOR               = _version_major
 MINOR               = _version_minor

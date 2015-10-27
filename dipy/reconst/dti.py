@@ -9,6 +9,7 @@ import numpy as np
 import scipy.optimize as opt
 
 from dipy.utils.six.moves import range
+from dipy.utils.arrfuncs import pinv, eigh
 from dipy.data import get_sphere
 from ..core.gradients import gradient_table
 from ..core.geometry import vector_norm
@@ -44,6 +45,28 @@ def _roll_evals(evals, axis=-1):
     evals = np.rollaxis(evals, axis)
 
     return evals
+
+
+def _min_positive_signal(data):
+    """ Helper function to establish the minimun positive signal of a given
+    data
+
+    Parameters
+    ----------
+    data: array ([X, Y, Z, ...], g)
+        Data or response variables holding the data. Note that the last
+        dimension should contain the data.
+
+    Returns
+    -------
+    min_signal : float
+        Minimun positive signal of the given data
+    """
+    data = data.ravel()
+    if np.all(data == 0):
+        return 0.0001
+    else:
+        return data[data > 0].min()
 
 
 def fractional_anisotropy(evals, axis=-1):
@@ -82,6 +105,7 @@ def fractional_anisotropy(evals, axis=-1):
 
     return fa
 
+
 def geodesic_anisotropy(evals, axis=-1):
     r"""
     Geodesic anisotropy (GA) of a diffusion tensor.
@@ -104,38 +128,38 @@ def geodesic_anisotropy(evals, axis=-1):
 
     .. math::
 
-        GA = \sqrt{\sum_{i=1}^3 \log^2{\left ( \lambda_i/<\mathbf{D}> \right )}}, 
+        GA = \sqrt{\sum_{i=1}^3 \log^2{\left ( \lambda_i/<\mathbf{D}> \right )}},
         \quad \textrm{where} \quad <\mathbf{D}> = (\lambda_1\lambda_2\lambda_3)^{1/3}
 
-    Note that the notation, $<D>$, is often used as the mean diffusivity (MD) of the diffusion tensor 
-    and can lead to confusions in the literature (see [1]_ versus [2]_ versus [3]_ for example).    
-    Reference [2]_ defines geodesic anisotropy (GA) with $<D>$ as the MD in the denominator of the sum. 
-    This is wrong. The original paper [1]_ defines GA with $<D> = det(D)^{1/3}$, as the 
+    Note that the notation, $<D>$, is often used as the mean diffusivity (MD) of the diffusion tensor
+    and can lead to confusions in the literature (see [1]_ versus [2]_ versus [3]_ for example).
+    Reference [2]_ defines geodesic anisotropy (GA) with $<D>$ as the MD in the denominator of the sum.
+    This is wrong. The original paper [1]_ defines GA with $<D> = det(D)^{1/3}$, as the
     isotropic part of the distance. This might be an explanation for the confusion.
     The isotropic part of the diffusion tensor in Euclidean space is
-    the MD whereas the isotropic part of the tensor in log-Euclidean space is $det(D)^{1/3}$. 
+    the MD whereas the isotropic part of the tensor in log-Euclidean space is $det(D)^{1/3}$.
     The Appendix of [1]_ and log-Euclidean derivations from [3]_ are clear on this.
     Hence, all that to say that $<D> = det(D)^{1/3}$ here for the GA definition and not MD.
 
     References
     ----------
 
-    .. [1] P. G. Batchelor, M. Moakher, D. Atkinson, F. Calamante, A. Connelly, 
-        "A rigorous framework for diffusion tensor calculus", Magnetic Resonance 
+    .. [1] P. G. Batchelor, M. Moakher, D. Atkinson, F. Calamante, A. Connelly,
+        "A rigorous framework for diffusion tensor calculus", Magnetic Resonance
         in Medicine, vol. 53, pp. 221-225, 2005.
 
     .. [2] M. M. Correia, V. F. Newcombe, G.B. Williams.
-        "Contrast-to-noise ratios for indices of anisotropy obtained from diffusion MRI: 
+        "Contrast-to-noise ratios for indices of anisotropy obtained from diffusion MRI:
         a study with standard clinical b-values at 3T". NeuroImage, vol. 57, pp. 1103-1115, 2011.
 
-    .. [3] A. D. Lee, etal, P. M. Thompson.  
-        "Comparison of fractional and geodesic anisotropy in diffusion tensor images 
-        of 90 monozygotic and dizygotic twins". 5th IEEE International Symposium on 
+    .. [3] A. D. Lee, etal, P. M. Thompson.
+        "Comparison of fractional and geodesic anisotropy in diffusion tensor images
+        of 90 monozygotic and dizygotic twins". 5th IEEE International Symposium on
         Biomedical Imaging (ISBI), pp. 943-946, May 2008.
 
-    .. [4] V. Arsigny, P. Fillard, X. Pennec, N. Ayache. 
+    .. [4] V. Arsigny, P. Fillard, X. Pennec, N. Ayache.
         "Log-Euclidean metrics for fast and simple calculus on diffusion tensors."
-        Magnetic Resonance in Medecine, vol 56, pp. 411-421, 2006. 
+        Magnetic Resonance in Medecine, vol 56, pp. 411-421, 2006.
 
     """
 
@@ -146,7 +170,7 @@ def geodesic_anisotropy(evals, axis=-1):
     log2 = np.zeros(ev1.shape)
     log3 = np.zeros(ev1.shape)
     idx = np.nonzero(ev1)
-    
+
     # this is the definition in [1]_
     detD = np.power(ev1 * ev2 * ev3, 1/3.)
     log1[idx] = np.log(ev1[idx] / detD[idx])
@@ -154,8 +178,9 @@ def geodesic_anisotropy(evals, axis=-1):
     log3[idx] = np.log(ev3[idx] / detD[idx])
 
     ga = np.sqrt(log1 ** 2 + log2 ** 2 + log3 ** 2)
-    
+
     return ga
+
 
 def mean_diffusivity(evals, axis=-1):
     r"""
@@ -716,11 +741,12 @@ class TensorModel(ReconstModel):
 
         if not callable(fit_method):
             try:
-                self.fit_method = common_fit_methods[fit_method]
+                fit_method = common_fit_methods[fit_method]
             except KeyError:
                 raise ValueError('"' + str(fit_method) + '" is not a known fit '
                                  'method, the fit method should either be a '
                                  'function or one of the common fit methods')
+        self.fit_method = fit_method
 
         self.design_matrix = design_matrix(self.gtab)
         self.args = args
@@ -730,13 +756,6 @@ class TensorModel(ReconstModel):
             e_s = "The `min_signal` key-word argument needs to be strictly"
             e_s += " positive."
             raise ValueError(e_s)
-
-    def _min_positive_signal(self, data):
-        data = data.ravel()
-        if np.all(data==0):
-            return 0.0001
-        else:
-            return data[data > 0].min()
 
     def fit(self, data, mask=None):
         """ Fit method of the DTI model class
@@ -761,12 +780,12 @@ class TensorModel(ReconstModel):
             mask = np.array(mask, dtype=bool, copy=False)
             data_in_mask = np.reshape(data[mask], (-1, data.shape[-1]))
 
-        
+
         if self.min_signal is None:
-            min_signal = self._min_positive_signal(data)
+            min_signal = _min_positive_signal(data)
         else:
             min_signal = self.min_signal
-        
+
         data_in_mask = np.maximum(data_in_mask, min_signal)
         params_in_mask = self.fit_method(self.design_matrix, data_in_mask,
                                          *self.args, **self.kwargs)
@@ -836,9 +855,9 @@ class TensorFit(object):
     @property
     def evecs(self):
         """
-        Returns the eigenvectors of the tensor as an array
+        Returns the eigenvectors of the tensor as an array, columnwise
         """
-        evecs = self.model_params[..., 3:]
+        evecs = self.model_params[..., 3:12]
         return evecs.reshape(self.shape + (3, 3))
 
     @property
@@ -856,6 +875,11 @@ class TensorFit(object):
     def fa(self):
         """Fractional anisotropy (FA) calculated from cached eigenvalues."""
         return fractional_anisotropy(self.evals)
+
+    @auto_attr
+    def color_fa(self):
+        """Color fractional anisotropy of diffusion tensor"""
+        return color_fa(self.fa, self.evecs)
 
     @auto_attr
     def ga(self):
@@ -1131,7 +1155,7 @@ class TensorFit(object):
         which a signal is to be predicted and $b$ is the b value provided in
         the GradientTable input for that direction
         """
-        return tensor_prediction(self.model_params, gtab, S0=S0)
+        return tensor_prediction(self.model_params[..., 0:12], gtab, S0=S0)
 
 
 def wls_fit_tensor(design_matrix, data):
@@ -1193,42 +1217,15 @@ def wls_fit_tensor(design_matrix, data):
     """
     tol = 1e-6
     data = np.asarray(data)
-    data_flat = data.reshape((-1, data.shape[-1]))
-    dti_params = np.empty((len(data_flat), 4, 3))
-
-    #obtain OLS fitting matrix
-    #U,S,V = np.linalg.svd(design_matrix, False)
-    #math: beta_ols = inv(X.T*X)*X.T*y
-    #math: ols_fit = X*beta_ols*inv(y)
-    #ols_fit = np.dot(U, U.T)
     ols_fit = _ols_fit_matrix(design_matrix)
-    min_diffusivity = tol / -design_matrix.min()
-
-    for param, sig in zip(dti_params, data_flat):
-        param[0], param[1:] = _wls_iter(ols_fit, design_matrix, sig,
-                                        min_diffusivity)
-
-    dti_params.shape = data.shape[:-1] + (12,)
-    return dti_params
-
-
-def _wls_iter(ols_fit, design_matrix, sig, min_diffusivity):
-    ''' Helper function used by wls_fit_tensor.
-    '''
-    log_s = np.log(sig)
-    w = np.exp(np.dot(ols_fit, log_s))
-    D = np.dot(np.linalg.pinv(design_matrix * w[:, None]), w * log_s)
-    tensor = from_lower_triangular(D)
-    return decompose_tensor(tensor, min_diffusivity=min_diffusivity)
-
-
-def _ols_iter(inv_design, sig, min_diffusivity):
-    ''' Helper function used by ols_fit_tensor.
-    '''
-    log_s = np.log(sig)
-    D = np.dot(inv_design, log_s)
-    tensor = from_lower_triangular(D)
-    return decompose_tensor(tensor, min_diffusivity=min_diffusivity)
+    log_s = np.log(data)
+    w = np.exp(np.einsum('...ij,...j', ols_fit, log_s))
+    return eig_from_lo_tri(
+        np.einsum('...ij,...j',
+                  pinv(design_matrix * w[..., None]),
+                  w * log_s),
+        min_diffusivity=tol / -design_matrix.min(),
+    )
 
 
 def ols_fit_tensor(design_matrix, data):
@@ -1275,28 +1272,11 @@ def ols_fit_tensor(design_matrix, data):
         NeuroImage 33, 531-541.
     """
     tol = 1e-6
-
     data = np.asarray(data)
-    data_flat = data.reshape((-1, data.shape[-1]))
-    evals = np.empty((len(data_flat), 3))
-    evecs = np.empty((len(data_flat), 3, 3))
-    dti_params = np.empty((len(data_flat), 4, 3))
-
-    #obtain OLS fitting matrix
-    #U,S,V = np.linalg.svd(design_matrix, False)
-    #math: beta_ols = inv(X.T*X)*X.T*y
-    #math: ols_fit = X*beta_ols*inv(y)
-    #ols_fit =  np.dot(U, U.T)
-
-    min_diffusivity = tol / -design_matrix.min()
-    inv_design = np.linalg.pinv(design_matrix)
-
-    for param, sig in zip(dti_params, data_flat):
-        param[0], param[1:] = _ols_iter(inv_design, sig, min_diffusivity)
-
-    dti_params.shape = data.shape[:-1] + (12,)
-    dti_params = dti_params
-    return dti_params
+    return eig_from_lo_tri(
+        np.einsum('...ij,...j', np.linalg.pinv(design_matrix), np.log(data)),
+        min_diffusivity=tol / -design_matrix.min(),
+    )
 
 
 def _ols_fit_matrix(design_matrix):
@@ -1345,7 +1325,7 @@ def _nlls_err_func(tensor, design_matrix, data, weighting=None,
         all directions (when a float is provided), or to an estimate of the
         noise in each diffusion-weighting direction (if an array is
         provided). If 'gmm', the Geman-Mclure M-estimator is used for
-        weighting (see Notes.
+        weighting (see Notes).
 
     Notes
     -----
@@ -1493,13 +1473,13 @@ def nlls_fit_tensor(design_matrix, data, weighting=None,
 
         # The parameters are the evals and the evecs:
         try:
-            evals,evecs=decompose_tensor(from_lower_triangular(this_tensor[:6]))
+            evals, evecs = decompose_tensor(from_lower_triangular(this_tensor[:6]))
             dti_params[vox, :3] = evals
             dti_params[vox, 3:] = evecs.ravel()
         # If leastsq failed to converge and produced nans, we'll resort to the
         # OLS solution in this voxel:
         except np.linalg.LinAlgError:
-            evals,evecs=decompose_tensor(from_lower_triangular(start_params[:6]))
+            evals, evecs = decompose_tensor(from_lower_triangular(start_params[:6]))
             dti_params[vox, :3] = evals
             dti_params[vox, 3:] = evecs.ravel()
 
@@ -1608,26 +1588,26 @@ def restore_fit_tensor(design_matrix, data, sigma=None, jac=True):
                     this_sigma = sigma
 
                 if jac:
-                    this_tensor, status= opt.leastsq(_nlls_err_func,
+                    this_tensor, status = opt.leastsq(_nlls_err_func,
                                                      start_params,
                                                      args=(clean_design,
                                                            clean_sig),
                                                      Dfun=_nlls_jacobian_func)
                 else:
-                    this_tensor, status= opt.leastsq(_nlls_err_func,
+                    this_tensor, status = opt.leastsq(_nlls_err_func,
                                                      start_params,
                                                      args=(clean_design,
                                                            clean_sig))
 
         # The parameters are the evals and the evecs:
         try:
-            evals,evecs=decompose_tensor(from_lower_triangular(this_tensor[:6]))
+            evals, evecs = decompose_tensor(from_lower_triangular(this_tensor[:6]))
             dti_params[vox, :3] = evals
             dti_params[vox, 3:] = evecs.ravel()
         # If leastsq failed to converge and produced nans, we'll resort to the
         # OLS solution in this voxel:
         except np.linalg.LinAlgError:
-            evals,evecs=decompose_tensor(from_lower_triangular(start_params[:6]))
+            evals, evecs = decompose_tensor(from_lower_triangular(start_params[:6]))
             dti_params[vox, :3] = evals
             dti_params[vox, 3:] = evecs.ravel()
 
@@ -1705,7 +1685,7 @@ def decompose_tensor(tensor, min_diffusivity=0):
 
     Parameters
     ----------
-    tensor : array (3, 3)
+    tensor : array (..., 3, 3)
         Hermitian matrix representing a diffusion tensor.
     min_diffusivity : float
         Because negative eigenvalues are not physical and small eigenvalues,
@@ -1715,22 +1695,37 @@ def decompose_tensor(tensor, min_diffusivity=0):
 
     Returns
     -------
-    eigvals : array (3,)
+    eigvals : array (..., 3)
         Eigenvalues from eigen decomposition of the tensor. Negative
         eigenvalues are replaced by zero. Sorted from largest to smallest.
-    eigvecs : array (3, 3)
+    eigvecs : array (..., 3, 3)
         Associated eigenvectors from eigen decomposition of the tensor.
-        Eigenvectors are columnar (e.g. eigvecs[:,j] is associated with
-        eigvals[j])
+        Eigenvectors are columnar (e.g. eigvecs[..., :, j] is associated with
+        eigvals[..., j])
 
     """
     #outputs multiplicity as well so need to unique
-    eigenvals, eigenvecs = np.linalg.eigh(tensor)
+    eigenvals, eigenvecs = eigh(tensor)
 
     #need to sort the eigenvalues and associated eigenvectors
-    order = eigenvals.argsort()[::-1]
-    eigenvecs = eigenvecs[:, order]
-    eigenvals = eigenvals[order]
+    if eigenvals.ndim == 1:
+        # this is a lot faster when dealing with a single voxel
+        order = eigenvals.argsort()[::-1]
+        eigenvecs = eigenvecs[:, order]
+        eigenvals = eigenvals[order]
+    else:
+        # temporarily flatten eigenvals and eigenvecs to make sorting easier
+        shape = eigenvals.shape[:-1]
+        eigenvals = eigenvals.reshape(-1, 3)
+        eigenvecs = eigenvecs.reshape(-1, 3, 3)
+        size = eigenvals.shape[0]
+        order = eigenvals.argsort()[:, ::-1]
+        xi, yi = np.ogrid[:size, :3, :3][:2]
+        eigenvecs = eigenvecs[xi, yi, order[:, None, :]]
+        xi = np.ogrid[:size, :3][0]
+        eigenvals = eigenvals[xi, order]
+        eigenvecs = eigenvecs.reshape(shape + (3, 3))
+        eigenvals = eigenvals.reshape(shape + (3, ))
 
     eigenvals = eigenvals.clip(min=min_diffusivity)
     # eigenvecs: each vector is columnar
@@ -1791,7 +1786,7 @@ def quantize_evecs(evecs, odf_vertices=None):
     return IN
 
 
-def eig_from_lo_tri(data):
+def eig_from_lo_tri(data, min_diffusivity=0):
     """
     Calculates tensor eigenvalues/eigenvectors from an array containing the
     lower diagonal form of the six unique tensor elements.
@@ -1800,24 +1795,19 @@ def eig_from_lo_tri(data):
     ----------
     data : array_like (..., 6)
         diffusion tensors elements stored in lower triangular order
+    min_diffusivity : float
+        See decompose_tensor()
 
     Returns
     -------
-    dti_params (..., 12)
+    dti_params : array (..., 12)
         Eigen-values and eigen-vectors of the same array.
     """
     data = np.asarray(data)
-    data_flat = data.reshape((-1, data.shape[-1]))
-    dti_params = np.empty((len(data_flat), 4, 3))
-
-    for ii in range(len(data_flat)):
-        tensor = from_lower_triangular(data_flat[ii])
-        eigvals, eigvecs = decompose_tensor(tensor)
-        dti_params[ii, 0] = eigvals
-        dti_params[ii, 1:] = eigvecs
-
-    dti_params.shape = data.shape[:-1] + (12,)
-    return dti_params
+    evals, evecs = decompose_tensor(from_lower_triangular(data),
+                                    min_diffusivity=min_diffusivity)
+    dti_params = np.concatenate((evals[..., None, :], evecs), axis=-2)
+    return dti_params.reshape(data.shape[:-1] + (12, ))
 
 
 common_fit_methods = {'WLS': wls_fit_tensor,
