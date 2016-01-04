@@ -2,8 +2,13 @@ from __future__ import division
 
 import numpy as np
 cimport numpy as cnp
+
 cimport cython
+cimport safe_openmp as openmp
+from safe_openmp cimport have_openmp
+
 from cython.parallel import parallel, prange
+from multiprocessing import cpu_count
 
 #from dipy.denoise.signal_transformation_framework import _inv_cdf_gauss
 # from scilpy.denoising.hyp1f1 import hyp1f1_pas_vec as hyp1f1
@@ -15,7 +20,7 @@ from libc.string cimport memcpy
 
 
 def nlmeans_3d(arr, mask=None, sigma=None, patch_radius=1,
-               block_radius=5, rician=True):
+               block_radius=5, rician=True, num_threads=None):
     """ Non-local means for denoising 3D images
 
     Parameters
@@ -32,6 +37,9 @@ def nlmeans_3d(arr, mask=None, sigma=None, patch_radius=1,
     rician : boolean
         If True the noise is estimated as Rician, otherwise Gaussian noise
         is assumed.
+    num_threads : int
+        Number of threads. If None (default) then all available threads
+        will be used.
 
     Returns
     -------
@@ -60,7 +68,8 @@ def nlmeans_3d(arr, mask=None, sigma=None, patch_radius=1,
     mask = add_padding_reflection(mask.astype('f8'), block_radius)
     sigma = np.ascontiguousarray(sigma, dtype='f8')
     sigma = add_padding_reflection(sigma.astype('f8'), block_radius)
-    arrnlm = _nlmeans_3d(arr, mask, sigma, patch_radius, block_radius, rician)
+    arrnlm = _nlmeans_3d(arr, mask, sigma, patch_radius, block_radius,
+                         rician, num_threads)
 
 
     return remove_padding(arrnlm, block_radius)
@@ -115,7 +124,7 @@ def nlmeans_4d(arr, mask=None, sigma=None, patch_radius=1,
 @cython.boundscheck(False)
 def _nlmeans_3d(double [:, :, ::1] arr, double [:, :, ::1] mask,
                 double [:, :, ::1] sigma, patch_radius=1, block_radius=5,
-                rician=True):
+                rician=True, num_threads=None):
     """ This algorithm denoises the value of every voxel (i, j, k) by
     calculating a weight between a moving 3D patch and a static 3D patch
     centered at (i, j, k). The moving patch can only move inside a
@@ -128,13 +137,25 @@ def _nlmeans_3d(double [:, :, ::1] arr, double [:, :, ::1] mask,
         double summ = 0
         cnp.npy_intp P = patch_radius
         cnp.npy_intp B = block_radius
+        int all_cores = openmp.omp_get_num_procs()
+        int threads_to_use = -1
 
     I = arr.shape[0]
     J = arr.shape[1]
     K = arr.shape[2]
 
+    if num_threads is not None:
+        threads_to_use = num_threads
+    else:
+        threads_to_use = all_cores
+
+    if have_openmp:
+        openmp.omp_set_dynamic(0)
+        openmp.omp_set_num_threads(threads_to_use)
+
     # move the block
     with nogil, parallel():
+
         for i in prange(B, I - B):
             for j in range(B, J - B):
                 for k in range(B, K - B):
@@ -143,6 +164,9 @@ def _nlmeans_3d(double [:, :, ::1] arr, double [:, :, ::1] mask,
                         continue
 
                     out[i, j, k] = process_block(arr, i, j, k, B, P, sigma)
+
+    if have_openmp and num_threads is not None:
+        openmp.omp_set_num_threads(all_cores)
 
     new = np.asarray(out)
 
@@ -486,7 +510,6 @@ cdef cnp.npy_intp copy_block_3d(double * dest,
             memcpy(&dest[i * J * K  + j * K], &source[i + min_i, j + min_j, min_k], K * sizeof(double))
 
     return 1
-
 
 
 @cython.wraparound(False)
@@ -952,3 +975,9 @@ cdef double block_variance(double [:, :, ::1] arr,
 
 # def _test_xi(eta, sigma, N):
 #     return _xi(eta, sigma, N)
+
+def cpu_count():
+    if have_openmp:
+        return openmp.omp_get_num_procs()
+    else:
+        return 1

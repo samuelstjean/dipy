@@ -680,8 +680,9 @@ class AffineRegistration(object):
                  factors=None,
                  method='L-BFGS-B',
                  ss_sigma_factor=None,
-                 options=None):
-        r""" Initializes an instance of the AffineRegistration class
+                 options=None,
+                 verbosity=VerbosityLevels.STATUS):
+        """ Initializes an instance of the AffineRegistration class
 
         Parameters
         ----------
@@ -722,7 +723,6 @@ class AffineRegistration(object):
             extra optimization options. The default is None, implying
             no extra options are passed to the optimizer.
         """
-
         self.metric = metric
 
         if self.metric is None:
@@ -748,7 +748,25 @@ class AffineRegistration(object):
                 sigmas = [3, 1, 0]
             self.factors = factors
             self.sigmas = sigmas
-        self.verbosity = VerbosityLevels.STATUS
+
+        self.verbosity = verbosity
+
+    # Separately add a string that tells about the verbosity kwarg. This needs
+    # to be separate, because it is set as a module-wide option in __init__:
+    docstring_addendum =\
+    """verbosity: int (one of {0, 1, 2, 3}), optional
+            Set the verbosity level of the algorithm:
+            0 : do not print anything
+            1 : print information about the current status of the algorithm
+            2 : print high level information of the components involved in
+                the registration that can be used to detect a failing
+                component.
+            3 : print as much information as possible to isolate the cause
+                of a bug.
+            Default: % s
+    """ % VerbosityLevels.STATUS
+
+    __init__.__doc__ = __init__.__doc__ + docstring_addendum
 
     def _init_optimizer(self, static, moving, transform, params0,
                         static_grid2world, moving_grid2world,
@@ -797,22 +815,25 @@ class AffineRegistration(object):
         self.params0 = params0
         if starting_affine is None:
             self.starting_affine = np.eye(self.dim + 1)
-        elif starting_affine == 'mass':
-            affine_map = transform_centers_of_mass(static,
-                                                   static_grid2world,
-                                                   moving,
-                                                   moving_grid2world)
-            self.starting_affine = affine_map.affine
-        elif starting_affine == 'voxel-origin':
-            affine_map = transform_origins(static, static_grid2world,
-                                           moving, moving_grid2world)
-            self.starting_affine = affine_map.affine
-        elif starting_affine == 'centers':
-            affine_map = transform_geometric_centers(static,
-                                                     static_grid2world,
-                                                     moving,
-                                                     moving_grid2world)
-            self.starting_affine = affine_map.affine
+        elif isinstance(starting_affine, str):
+            if starting_affine == 'mass':
+                affine_map = transform_centers_of_mass(static,
+                                                       static_grid2world,
+                                                       moving,
+                                                       moving_grid2world)
+                self.starting_affine = affine_map.affine
+            elif starting_affine == 'voxel-origin':
+                affine_map = transform_origins(static, static_grid2world,
+                                               moving, moving_grid2world)
+                self.starting_affine = affine_map.affine
+            elif starting_affine == 'centers':
+                affine_map = transform_geometric_centers(static,
+                                                         static_grid2world,
+                                                         moving,
+                                                         moving_grid2world)
+                self.starting_affine = affine_map.affine
+            else:
+                raise ValueError('Invalid starting_affine strategy')
         elif (isinstance(starting_affine, np.ndarray) and
               starting_affine.shape >= (self.dim, self.dim + 1)):
             self.starting_affine = starting_affine
@@ -957,7 +978,8 @@ class AffineRegistration(object):
                                 method=self.method, jac=self.metric.gradient,
                                 options=self.options)
             else:
-                opt = Optimizer(self.metric.distance_and_gradient, self.params0,
+                opt = Optimizer(self.metric.distance_and_gradient,
+                                self.params0,
                                 method=self.method, jac=True,
                                 options=self.options)
             params = opt.xopt
@@ -979,7 +1001,7 @@ def align_centers_of_mass(static, static_grid2world,
     msg += " dipy.align.imaffine.transform_centers_of_mass instead."
     warn(msg)
     return transform_centers_of_mass(static, static_grid2world,
-                                       moving, moving_grid2world)
+                                     moving, moving_grid2world)
 
 
 def align_geometric_centers(static, static_grid2world,

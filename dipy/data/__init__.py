@@ -27,7 +27,6 @@ import numpy as np
 from dipy.core.gradients import GradientTable, gradient_table
 from dipy.core.sphere import Sphere, HemiSphere
 from dipy.sims.voxel import SticksAndBall
-import numpy as np
 from dipy.data.fetcher import (fetch_scil_b0,
                                read_scil_b0,
                                fetch_stanford_hardi,
@@ -45,6 +44,10 @@ from dipy.data.fetcher import (fetch_scil_b0,
                                read_stanford_t1,
                                fetch_stanford_pve_maps,
                                read_stanford_pve_maps,
+                               fetch_viz_icons,
+                               read_viz_icons,
+                               fetch_bundles_2_subjects,
+                               read_bundles_2_subjects,
                                fetch_cenir_multib,
                                read_cenir_multib,
                                fetch_mni_template,
@@ -85,14 +88,14 @@ def get_sim_voxels(name='fib1'):
     ----------
     >>> from dipy.data import get_sim_voxels
     >>> sv=get_sim_voxels('fib1')
-    >>> sv['data'].shape
-    (100, 102)
+    >>> sv['data'].shape == (100, 102)
+    True
     >>> sv['fibres']
     '1'
-    >>> sv['gradients'].shape
-    (102, 3)
-    >>> sv['bvals'].shape
-    (102,)
+    >>> sv['gradients'].shape == (102, 3)
+    True
+    >>> sv['bvals'].shape == (102,)
+    True
     >>> sv['snr']
     '60'
     >>> sv2=get_sim_voxels('fib2')
@@ -165,10 +168,10 @@ def get_sphere(name='symmetric362'):
     >>> from dipy.data import get_sphere
     >>> sphere = get_sphere('symmetric362')
     >>> verts, faces = sphere.vertices, sphere.faces
-    >>> verts.shape
-    (362, 3)
-    >>> faces.shape
-    (720, 3)
+    >>> verts.shape == (362, 3)
+    True
+    >>> faces.shape == (720, 3)
+    True
     >>> verts, faces = get_sphere('not a sphere name') #doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
         ...
@@ -221,12 +224,12 @@ def get_data(name='small_64D'):
     >>> import nibabel as nib
     >>> img=nib.load(fimg)
     >>> data=img.get_data()
-    >>> data.shape
-    (6, 10, 10, 102)
-    >>> bvals.shape
-    (102,)
-    >>> bvecs.shape
-    (102, 3)
+    >>> data.shape == (6, 10, 10, 102)
+    True
+    >>> bvals.shape == (102,)
+    True
+    >>> bvecs.shape == (102, 3)
+    True
     """
 
     if name == 'small_64D':
