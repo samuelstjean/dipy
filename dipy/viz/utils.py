@@ -298,4 +298,4 @@ def lines_to_vtk_polydata(lines, colors=None):
     poly_data.SetLines(vtk_lines)
     poly_data.GetPointData().SetScalars(vtk_colors)
     return poly_data, is_colormap
->>>>>>> upstream_master
+

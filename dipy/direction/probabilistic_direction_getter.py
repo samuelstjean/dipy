@@ -43,7 +43,7 @@ class SHCoeffPmfGen(PmfGen):
         self._B, m, n = basis(sh_order, sphere.theta, sphere.phi)
 
     def get_pmf(self, point):
-        coeff = trilinear_interpolate4d(self.shcoeff, point)
+        coeff = trilinear_interpolate4d(self.shcoeff.astype(np.float64, point)
         pmf = np.dot(self._B, coeff)
         pmf.clip(0, out=pmf)
         return pmf
