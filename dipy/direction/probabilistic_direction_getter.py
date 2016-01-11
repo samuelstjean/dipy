@@ -33,7 +33,7 @@ class SimplePmfGen(PmfGen):
 class SHCoeffPmfGen(PmfGen):
 
     def __init__(self, shcoeff, sphere, basis_type):
-        self.shcoeff = shcoeff
+        self.shcoeff = shcoeff.astype(np.float64)
         self.sphere = sphere
         sh_order = order_from_ncoef(shcoeff.shape[-1])
         try:
@@ -43,7 +43,7 @@ class SHCoeffPmfGen(PmfGen):
         self._B, m, n = basis(sh_order, sphere.theta, sphere.phi)
 
     def get_pmf(self, point):
-        coeff = trilinear_interpolate4d(self.shcoeff.astype(np.float64, point)
+        coeff = trilinear_interpolate4d(self.shcoeff, point)
         pmf = np.dot(self._B, coeff)
         pmf.clip(0, out=pmf)
         return pmf
