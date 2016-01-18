@@ -285,10 +285,10 @@ def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
 
     denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
 
-    if init is None:
+    if initial_estimation is None:
         m = np.percentile(data, q * 100) / denom
     else:
-        m = init / denom
+        m = initial_estimation / denom
 
     phi = np.arange(1, l + 1) * m / l
     K = data.shape[-1]
@@ -301,7 +301,6 @@ def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
 
     lambda_minus = _inv_nchi_cdf(N, K, alpha/2)
     lambda_plus = _inv_nchi_cdf(N, K, 1 - alpha/2)
-
 
     for sigma_init in phi:
 

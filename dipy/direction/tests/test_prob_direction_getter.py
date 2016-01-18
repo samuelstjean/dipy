@@ -5,6 +5,7 @@ from dipy.core.sphere import unit_octahedron
 from dipy.reconst.shm import SphHarmFit, SphHarmModel
 from dipy.direction import ProbabilisticDirectionGetter
 
+
 def test_ProbabilisticDirectionGetter():
     # Test the constructors and errors of the ProbabilisticDirectionGetter
 
