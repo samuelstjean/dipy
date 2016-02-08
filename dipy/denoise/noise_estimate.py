@@ -2,13 +2,13 @@ from __future__ import division, print_function
 
 import numpy as np
 
-from numba import jit, autojit
+# from numba import jit, autojit
 from scipy.special import gammainccinv
 from scipy.ndimage.filters import convolve
 from numpy.lib.stride_tricks import as_strided as ast
 from scilpy.utils.angular_tools import angular_neighbors
 from scipy.ndimage.interpolation import zoom
-from scipy.misc import imresize
+# from scipy.misc import imresize
 
 # Get optimal quantile for N if available, else use the median.
 opt_quantile = {1: 0.79681213002002,
@@ -86,9 +86,7 @@ def fast_piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask
 
         # Numpy percentile must range in 0 to 100, hence q*100
         sigma = np.percentile(omega, q * 100) / denom
-        # sigma = np.percentile(omega, 100) / denom
-        # print(sigma, n, np.sum(mask))
-    # print(sigma * np.sqrt(K))
+
     if return_mask:
         return sigma, mask
 
@@ -527,7 +525,7 @@ def local_piesno(data, bvals, bvecs, N=1, block_size=6, size=5, return_mask=True
     return s_out, interpolated
 
 
-@jit(nogil=True, cache=True)
+# @jit(nogil=True, cache=True)
 def inner_piesno(data, m, q, l, denom, lambda_plus, lambda_minus):
 
     itermax = 100
