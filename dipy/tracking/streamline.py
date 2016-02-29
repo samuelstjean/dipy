@@ -352,7 +352,7 @@ def _extract_vals(data, streamlines, affine=None, threedvec=False):
     threedvec : bool
         Whether the last dimension has length 3. This is a special case in
         which we can use :func:`vfu.interpolate_vector_3d` for the
-        interploation of 4D volumes without looping over the elements of the
+        interpolation of 4D volumes without looping over the elements of the
         last dimension.
 
     Return
@@ -442,6 +442,7 @@ def values_from_volume(data, streamlines, affine=None):
                                  threedvec=True)
         if isinstance(streamlines, types.GeneratorType):
             streamlines = list(streamlines)
+
         vals = []
         for ii in range(data.shape[-1]):
             vals.append(_extract_vals(data[..., ii], streamlines,
