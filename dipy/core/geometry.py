@@ -102,7 +102,7 @@ def cart2sphere(x, y, z):
     r''' Return angles for Cartesian 3D coordinates `x`, `y`, and `z`
 
     See doc for ``sphere2cart`` for angle conventions and derivation
-    of the formulae.
+    of the formula.
 
     $0\le\theta\mathrm{(theta)}\le\pi$ and $-\pi\le\phi\mathrm{(phi)}\le\pi$
 

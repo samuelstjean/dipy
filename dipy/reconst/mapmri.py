@@ -20,10 +20,10 @@ class MapmriModel(ReconstModel):
     dimensions.
     The main difference with the SHORE proposed in [3]_ is that MAPMRI 3D
     extension is provided using a set of three basis functions for the radial
-    part, one for the signal along x, one for y and one for z, while [3]_ 
+    part, one for the signal along x, one for y and one for z, while [3]_
     uses one basis function to model the radial part and real Spherical
     Harmonics to model the angular part.
-    From the MAPMRI coefficients is possible to use the analytical formulae 
+    From the MAPMRI coefficients is possible to use the analytical formulae
     to estimate the ODF.
 
     References
@@ -58,10 +58,10 @@ class MapmriModel(ReconstModel):
 
         The main difference with the SHORE proposed in [3]_ is that MAPMRI 3D
         extension is provided using a set of three basis functions for the radial
-        part, one for the signal along x, one for y and one for z, while [3]_ 
+        part, one for the signal along x, one for y and one for z, while [3]_
         uses one basis function to model the radial part and real Spherical
         Harmonics to model the angular part.
-        From the MAPMRI coefficients is possible to use the analytical formulae 
+        From the MAPMRI coefficients is possible to use the analytical formulae
         to estimate the ODF.
 
 
@@ -79,7 +79,7 @@ class MapmriModel(ReconstModel):
             If false, force the basis function to be identical in the three
             dimensions (SHORE like).
         eigenvalue_threshold : float,
-            set the minimum of the tensor eigenvalues in order to avoid 
+            set the minimum of the tensor eigenvalues in order to avoid
             stability problem
         bmax_threshold : float,
             set the maximum b-value for the tensor estimation

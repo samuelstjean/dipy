@@ -27,7 +27,7 @@ def _inv_nchi_cdf(N, K, alpha):
     return gammainccinv(N * K, 1 - alpha) / K
 
 
-def fast_piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False, init=None):
+def _piesno_3D(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=False, init=None):
 
     if np.all(data == 0):
         if return_mask:
@@ -186,7 +186,7 @@ def piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=Fals
                                                           itermax=itermax,
                                                           eps=eps,
                                                           return_mask=True,
-                                                          initial_estimation=initial_estimation)
+                                                          init=initial_estimation)
 
     else:
         sigma, mask_noise = _piesno_3D(data, N,
@@ -195,7 +195,7 @@ def piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=Fals
                                        itermax=itermax,
                                        eps=eps,
                                        return_mask=True,
-                                       initial_estimation=initial_estimation)
+                                       init=initial_estimation)
 
     if return_mask:
         return sigma, mask_noise
@@ -203,133 +203,133 @@ def piesno(data, N=1, alpha=0.01, l=100, itermax=100, eps=1e-5, return_mask=Fals
     return sigma
 
 
-def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
-               return_mask=False, initial_estimation=None):
-    """
-    Probabilistic Identification and Estimation of Noise (PIESNO).
-    This is the slice by slice version for working on a 4D array.
+# def _piesno_3D(data, N, alpha=0.01, l=100, itermax=100, eps=1e-5,
+#                return_mask=False, initial_estimation=None):
+#     """
+#     Probabilistic Identification and Estimation of Noise (PIESNO).
+#     This is the slice by slice version for working on a 4D array.
 
-    Parameters
-    -----------
-    data : ndarray
-        The magnitude signals to analyse. The last dimension must contain the
-        same realisation of the volume, such as dMRI or fMRI data.
+#     Parameters
+#     -----------
+#     data : ndarray
+#         The magnitude signals to analyse. The last dimension must contain the
+#         same realisation of the volume, such as dMRI or fMRI data.
 
-    N : int
-        The number of phase array coils of the MRI scanner.
+#     N : int
+#         The number of phase array coils of the MRI scanner.
 
-    alpha : float (optional)
-        Probabilistic estimation threshold for the gamma function.
-        Default: 0.01.
+#     alpha : float (optional)
+#         Probabilistic estimation threshold for the gamma function.
+#         Default: 0.01.
 
-    l : int (optional)
-        number of initial estimates for sigma to try. Default: 100.
+#     l : int (optional)
+#         number of initial estimates for sigma to try. Default: 100.
 
-    itermax : int (optional)
-        Maximum number of iterations to execute if convergence
-        is not reached. Default: 100.
+#     itermax : int (optional)
+#         Maximum number of iterations to execute if convergence
+#         is not reached. Default: 100.
 
-    eps : float (optional)
-        Tolerance for the convergence criterion. Convergence is
-        reached if two subsequent estimates are smaller than eps.
-        Default: 1e-5.
+#     eps : float (optional)
+#         Tolerance for the convergence criterion. Convergence is
+#         reached if two subsequent estimates are smaller than eps.
+#         Default: 1e-5.
 
-    return_mask : bool (optional)
-        If True, return a mask identyfing all the pure noise voxel
-        that were found. Default: False.
+#     return_mask : bool (optional)
+#         If True, return a mask identyfing all the pure noise voxel
+#         that were found. Default: False.
 
-    initial_estimation : float (optional)
-        Upper bound for the initial estimation of sigma. default : None,
-        which computes the optimal quantile for N.
+#     initial_estimation : float (optional)
+#         Upper bound for the initial estimation of sigma. default : None,
+#         which computes the optimal quantile for N.
 
-    Returns
-    --------
-    sigma : float
-        The estimated standard deviation of the gaussian noise.
+#     Returns
+#     --------
+#     sigma : float
+#         The estimated standard deviation of the gaussian noise.
 
-    mask : ndarray
-        A boolean mask indicating the voxels identified as pure noise.
+#     mask : ndarray
+#         A boolean mask indicating the voxels identified as pure noise.
 
-    Notes
-    ------
-    This function assumes two things : 1. The data has a noisy, non-masked
-    background and 2. The data is a repetition of the same measurements
-    along the last axis, i.e. dMRI or fMRI data, not structural data like T1/T2.
+#     Notes
+#     ------
+#     This function assumes two things : 1. The data has a noisy, non-masked
+#     background and 2. The data is a repetition of the same measurements
+#     along the last axis, i.e. dMRI or fMRI data, not structural data like T1/T2.
 
-    References
-    ------------
+#     References
+#     ------------
 
-    .. [1] Koay CG, Ozarslan E and Pierpaoli C.
-    "Probabilistic Identification and Estimation of Noise (PIESNO):
-    A self-consistent approach and its applications in MRI."
-    Journal of Magnetic Resonance 2009; 199: 94-103.
+#     .. [1] Koay CG, Ozarslan E and Pierpaoli C.
+#     "Probabilistic Identification and Estimation of Noise (PIESNO):
+#     A self-consistent approach and its applications in MRI."
+#     Journal of Magnetic Resonance 2009; 199: 94-103.
 
-    .. [2] Koay CG, Ozarslan E and Basser PJ.
-    "A signal transformational framework for breaking the noise floor
-    and its applications in MRI."
-    Journal of Magnetic Resonance 2009; 197: 108-119.
-    """
+#     .. [2] Koay CG, Ozarslan E and Basser PJ.
+#     "A signal transformational framework for breaking the noise floor
+#     and its applications in MRI."
+#     Journal of Magnetic Resonance 2009; 197: 108-119.
+#     """
 
-    if np.all(data == 0):
-        if return_mask:
-            return 0, np.zeros(data.shape[:-1], dtype=np.bool)
+#     if np.all(data == 0):
+#         if return_mask:
+#             return 0, np.zeros(data.shape[:-1], dtype=np.bool)
 
-        return 0
+#         return 0
 
-    if N in opt_quantile:
-        q = opt_quantile[N]
-    else:
-        q = 0.5
+#     if N in opt_quantile:
+#         q = opt_quantile[N]
+#     else:
+#         q = 0.5
 
-    denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
+#     denom = np.sqrt(2 * _inv_nchi_cdf(N, 1, q))
 
-    if initial_estimation is None:
-        m = np.percentile(data, q * 100) / denom
-    else:
-        m = initial_estimation / denom
+#     if initial_estimation is None:
+#         m = np.percentile(data, q * 100) / denom
+#     else:
+#         m = initial_estimation / denom
 
-    phi = np.arange(1, l + 1) * m / l
-    K = data.shape[-1]
-    sum_m2 = np.sum(data**2, axis=-1, dtype=np.float32)
+#     phi = np.arange(1, l + 1) * m / l
+#     K = data.shape[-1]
+#     sum_m2 = np.sum(data**2, axis=-1, dtype=np.float32)
 
-    sigma_prev = 0
-    sigma = m
-    prev_idx = 0
-    mask = np.zeros(data.shape[:-1], dtype=np.bool)
+#     sigma_prev = 0
+#     sigma = m
+#     prev_idx = 0
+#     mask = np.zeros(data.shape[:-1], dtype=np.bool)
 
-    lambda_minus = _inv_nchi_cdf(N, K, alpha/2)
-    lambda_plus = _inv_nchi_cdf(N, K, 1 - alpha/2)
+#     lambda_minus = _inv_nchi_cdf(N, K, alpha/2)
+#     lambda_plus = _inv_nchi_cdf(N, K, 1 - alpha/2)
 
-    for sigma_init in phi:
+#     for sigma_init in phi:
 
-        s = sum_m2 / (2 * K * sigma_init**2)
-        found_idx = np.sum(np.logical_and(lambda_minus <= s, s <= lambda_plus), dtype=np.int16)
+#         s = sum_m2 / (2 * K * sigma_init**2)
+#         found_idx = np.sum(np.logical_and(lambda_minus <= s, s <= lambda_plus), dtype=np.int16)
 
-        if found_idx > prev_idx:
-            sigma = sigma_init
-            prev_idx = found_idx
+#         if found_idx > prev_idx:
+#             sigma = sigma_init
+#             prev_idx = found_idx
 
-    for n in range(itermax):
-        if np.abs(sigma - sigma_prev) < eps:
-            break
+#     for n in range(itermax):
+#         if np.abs(sigma - sigma_prev) < eps:
+#             break
 
-        s = sum_m2 / (2 * K * sigma**2)
-        mask[...] = np.logical_and(lambda_minus <= s, s <= lambda_plus)
-        omega = data[mask, :]
+#         s = sum_m2 / (2 * K * sigma**2)
+#         mask[...] = np.logical_and(lambda_minus <= s, s <= lambda_plus)
+#         omega = data[mask, :]
 
-        # If no point meets the criterion, exit
-        if omega.size == 0:
-            break
+#         # If no point meets the criterion, exit
+#         if omega.size == 0:
+#             break
 
-        sigma_prev = sigma
+#         sigma_prev = sigma
 
-        # Numpy percentile must range in 0 to 100, hence q*100
-        sigma = np.percentile(omega, q * 100) / denom
+#         # Numpy percentile must range in 0 to 100, hence q*100
+#         sigma = np.percentile(omega, q * 100) / denom
 
-    if return_mask:
-        return sigma, mask
+#     if return_mask:
+#         return sigma, mask
 
-    return sigma
+#     return sigma
 
 
 def estimate_sigma(arr, disable_background_masking=False, N=0):
@@ -572,6 +572,7 @@ def inner_piesno(data, m, q, l, denom, lambda_plus, lambda_minus):
         mask[num] = idx
 
     return sigma[pos], mask[pos]
+
 
 def sliding_window(a, ws, ss=None, flatten=True):
     '''
