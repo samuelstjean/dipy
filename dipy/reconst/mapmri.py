@@ -20,10 +20,10 @@ class MapmriModel(ReconstModel):
     dimensions.
     The main difference with the SHORE proposed in [3]_ is that MAPMRI 3D
     extension is provided using a set of three basis functions for the radial
-    part, one for the signal along x, one for y and one for z, while [3]_ 
+    part, one for the signal along x, one for y and one for z, while [3]_
     uses one basis function to model the radial part and real Spherical
     Harmonics to model the angular part.
-    From the MAPMRI coefficients is possible to use the analytical formulae 
+    From the MAPMRI coefficients is possible to use the analytical formulae
     to estimate the ODF.
 
     References
@@ -58,10 +58,10 @@ class MapmriModel(ReconstModel):
 
         The main difference with the SHORE proposed in [3]_ is that MAPMRI 3D
         extension is provided using a set of three basis functions for the radial
-        part, one for the signal along x, one for y and one for z, while [3]_ 
+        part, one for the signal along x, one for y and one for z, while [3]_
         uses one basis function to model the radial part and real Spherical
         Harmonics to model the angular part.
-        From the MAPMRI coefficients is possible to use the analytical formulae 
+        From the MAPMRI coefficients is possible to use the analytical formulae
         to estimate the ODF.
 
 
@@ -79,7 +79,7 @@ class MapmriModel(ReconstModel):
             If false, force the basis function to be identical in the three
             dimensions (SHORE like).
         eigenvalue_threshold : float,
-            set the minimum of the tensor eigenvalues in order to avoid 
+            set the minimum of the tensor eigenvalues in order to avoid
             stability problem
         bmax_threshold : float,
             set the maximum b-value for the tensor estimation
@@ -162,32 +162,46 @@ class MapmriModel(ReconstModel):
         q = qvecs * qvals[:, None]
         M = mapmri_phi_matrix(self.radial_order, mu, q.T)
         # This is a simple empirical regularization, to be replaced
-        I = np.diag(self.ind_mat.sum(1) ** 2)
+        I = np.diag(self.ind_mat.sum(1)**2)
         if self.eap_cons:
-            if not have_cvxopt:
-                raise ValueError(
-                    'CVXOPT package needed to enforce constraints')
-            w_s = "The implementation of MAPMRI depends on CVXOPT "
-            w_s += " (http://cvxopt.org/). This software is licensed "
-            w_s += "under the GPL (see: http://cvxopt.org/copyright.html) "
-            w_s += " and you may be subject to this license when using MAPMRI."
-            warn(w_s)
-            import cvxopt.solvers
-            rmax = 2 * np.sqrt(10 * evals.max() * self.tau)
-            r_index, r_grad = create_rspace(11, rmax)
-            K = mapmri_psi_matrix(
-                self.radial_order,  mu, r_grad[0:len(r_grad) / 2, :])
 
-            Q = cvxopt.matrix(np.dot(M.T, M) + self.lambd * I)
-            p = cvxopt.matrix(-1 * np.dot(M.T, data))
-            G = cvxopt.matrix(-1 * K)
-            h = cvxopt.matrix(np.zeros((K.shape[0])), (K.shape[0], 1))
-            cvxopt.solvers.options['show_progress'] = False
-            sol = cvxopt.solvers.qp(Q, p, G, h)
-            if sol['status'] != 'optimal':
-                warn('Optimization did not find a solution')
+            from scipy.linalg import solve
 
-            coef = np.array(sol['x'])[:, 0]
+            Q = np.dot(M.T, M) + self.lambd * I
+            E = M
+            c = -np.dot(M.T, data)
+
+            A1 = np.hstack((Q, E.T))
+            A2 = np.hstack((E, np.zeros(E.shape[0])))
+
+            A = np.vstack((A1, A2))
+            b = np.vstack((-c, data))
+            coef = solve(A, b)[:M.shape[0]]
+
+        #     if not have_cvxopt:
+        #         raise ValueError(
+        #             'CVXOPT package needed to enforce constraints')
+        #     w_s = "The implementation of MAPMRI depends on CVXOPT "
+        #     w_s += " (http://cvxopt.org/). This software is licensed "
+        #     w_s += "under the GPL (see: http://cvxopt.org/copyright.html) "
+        #     w_s += " and you may be subject to this license when using MAPMRI."
+        #     warn(w_s)
+        #     import cvxopt.solvers
+        #     rmax = 2 * np.sqrt(10 * evals.max() * self.tau)
+        #     r_index, r_grad = create_rspace(11, rmax)
+        #     K = mapmri_psi_matrix(
+        #         self.radial_order,  mu, r_grad[0:len(r_grad) / 2, :])
+
+        #     Q = cvxopt.matrix(np.dot(M.T, M) + self.lambd * I)
+        #     p = cvxopt.matrix(-1 * np.dot(M.T, data))
+        #     G = cvxopt.matrix(-1 * K)
+        #     h = cvxopt.matrix(np.zeros((K.shape[0])), (K.shape[0], 1))
+        #     cvxopt.solvers.options['show_progress'] = False
+        #     sol = cvxopt.solvers.qp(Q, p, G, h)
+        #     if sol['status'] != 'optimal':
+        #         warn('Optimization did not find a solution')
+
+        #     coef = np.array(sol['x'])[:, 0]
         else:
             pseudoInv = np.dot(
                 np.linalg.inv(np.dot(M.T, M) + self.lambd * I), M.T)
