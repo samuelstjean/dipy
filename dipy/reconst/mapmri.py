@@ -179,30 +179,30 @@ class MapmriModel(ReconstModel):
             coef = solve(A, b)[:c.shape[0]]
             print(coef.shape, solve(A, b).shape, c.shape, data.shape)
 
-        #     if not have_cvxopt:
-        #         raise ValueError(
-        #             'CVXOPT package needed to enforce constraints')
-        #     w_s = "The implementation of MAPMRI depends on CVXOPT "
-        #     w_s += " (http://cvxopt.org/). This software is licensed "
-        #     w_s += "under the GPL (see: http://cvxopt.org/copyright.html) "
-        #     w_s += " and you may be subject to this license when using MAPMRI."
-        #     warn(w_s)
-        #     import cvxopt.solvers
-        #     rmax = 2 * np.sqrt(10 * evals.max() * self.tau)
-        #     r_index, r_grad = create_rspace(11, rmax)
-        #     K = mapmri_psi_matrix(
-        #         self.radial_order,  mu, r_grad[0:len(r_grad) / 2, :])
+            # if not have_cvxopt:
+            #     raise ValueError(
+            #         'CVXOPT package needed to enforce constraints')
+            # w_s = "The implementation of MAPMRI depends on CVXOPT "
+            # w_s += " (http://cvxopt.org/). This software is licensed "
+            # w_s += "under the GPL (see: http://cvxopt.org/copyright.html) "
+            # w_s += " and you may be subject to this license when using MAPMRI."
+            # warn(w_s)
+            # import cvxopt.solvers
+            # rmax = 2 * np.sqrt(10 * evals.max() * self.tau)
+            # r_index, r_grad = create_rspace(11, rmax)
+            # K = mapmri_psi_matrix(
+            #     self.radial_order, mu, r_grad[0:len(r_grad) / 2, :])
 
-        #     Q = cvxopt.matrix(np.dot(M.T, M) + self.lambd * I)
-        #     p = cvxopt.matrix(-1 * np.dot(M.T, data))
-        #     G = cvxopt.matrix(-1 * K)
-        #     h = cvxopt.matrix(np.zeros((K.shape[0])), (K.shape[0], 1))
-        #     cvxopt.solvers.options['show_progress'] = False
-        #     sol = cvxopt.solvers.qp(Q, p, G, h)
-        #     if sol['status'] != 'optimal':
-        #         warn('Optimization did not find a solution')
+            # Q = cvxopt.matrix(np.dot(M.T, M) + self.lambd * I)
+            # p = cvxopt.matrix(-1 * np.dot(M.T, data))
+            # G = cvxopt.matrix(-1 * K)
+            # h = cvxopt.matrix(np.zeros((K.shape[0])), (K.shape[0], 1))
+            # cvxopt.solvers.options['show_progress'] = False
+            # sol = cvxopt.solvers.qp(Q, p, G, h)
+            # if sol['status'] != 'optimal':
+            #     warn('Optimization did not find a solution')
 
-        #     coef = np.array(sol['x'])[:, 0]
+            # coef = np.array(sol['x'])[:, 0]
         else:
             pseudoInv = np.dot(
                 np.linalg.inv(np.dot(M.T, M) + self.lambd * I), M.T)

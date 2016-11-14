@@ -46,7 +46,9 @@ def test_mapmri_metrics():
     mu = mapfit.mapmri_mu
 
     S_reconst = mapfit.predict(gtab, 1.0)
-
+    # print(S/ S[0])
+    # print(S_reconst)
+    # print(S/ S[0] - S_reconst)
     # test the signal reconstruction
     S = S / S[0]
     nmse_signal = np.sqrt(np.sum((S - S_reconst) ** 2)) / (S.sum())
@@ -80,7 +82,7 @@ def test_mapmri_metrics():
     S, sticks = MultiTensor(gtab, mevals, S0=100.0, angles=angl,
                             fractions=[50, 50], snr=None)
 
-    mapm = MapmriModel(gtab, radial_order=radial_order, lambd=lambd)
+    mapm = MapmriModel(gtab, radial_order=radial_order, lambd=lambd, eap_cons=True)
     mapfit = mapm.fit(S)
 
     # RTOP
@@ -101,4 +103,4 @@ def test_mapmri_metrics():
 
 
 if __name__ == '__main__':
-    run_module_suite()
+    test_mapmri_metrics()
