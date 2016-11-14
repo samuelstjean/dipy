@@ -6,7 +6,7 @@ import numpy as np
 from dipy.reconst.dti import (TensorFit, mean_diffusivity, axial_diffusivity,
                               radial_diffusivity, from_lower_triangular,
                               lower_triangular, decompose_tensor,
-                              _min_positive_signal)
+                              MIN_POSITIVE_SIGNAL)
 
 from dipy.reconst.utils import dki_design_matrix as design_matrix
 from dipy.utils.six.moves import range
@@ -889,7 +889,7 @@ def axial_kurtosis(dki_params, min_kurtosis=0, max_kurtosis=3):
     return AK.reshape(outshape)
 
 
-def dki_prediction(dki_params, gtab, S0=150):
+def dki_prediction(dki_params, gtab, S0=1.):
     """ Predict a signal given diffusion kurtosis imaging parameters.
 
     Parameters
@@ -1021,7 +1021,7 @@ class DiffusionKurtosisModel(ReconstModel):
             data_in_mask = np.reshape(data[mask], (-1, data.shape[-1]))
 
         if self.min_signal is None:
-            min_signal = _min_positive_signal(data)
+            min_signal = MIN_POSITIVE_SIGNAL
         else:
             min_signal = self.min_signal
 
@@ -1038,7 +1038,7 @@ class DiffusionKurtosisModel(ReconstModel):
 
         return DiffusionKurtosisFit(self, dki_params)
 
-    def predict(self, dki_params, S0=1):
+    def predict(self, dki_params, S0=1.):
         """ Predict a signal for this DKI model class instance given
         parameters.
 
@@ -1263,7 +1263,7 @@ class DiffusionKurtosisFit(TensorFit):
         """
         return radial_kurtosis(self.model_params, min_kurtosis, max_kurtosis)
 
-    def predict(self, gtab, S0=1):
+    def predict(self, gtab, S0=1.):
         r""" Given a DKI model fit, predict the signal on the vertices of a
         gradient table
 

@@ -39,7 +39,9 @@ from dipy.data.fetcher import (fetch_scil_b0,
                                fetch_cenir_multib,
                                read_cenir_multib,
                                fetch_mni_template,
-                               read_mni_template)
+                               read_mni_template,
+                               fetch_ivim,
+                               read_ivim)
 
 from ..utils.arrfuncs import as_native_array
 from dipy.tracking.streamline import relist_streamlines
@@ -248,6 +250,8 @@ def get_data(name='small_64D'):
         return fimg, fbvals, fbvecs
     if name == 'aniso_vox':
         return pjoin(DATA_DIR, 'aniso_vox.nii.gz')
+    if name == 'ascm_test':
+        return pjoin(DATA_DIR, 'ascm_out_test.nii.gz')
     if name == 'fornix':
         return pjoin(DATA_DIR, 'tracks300.trk')
     if name == 'gqi_vectors':
@@ -313,7 +317,7 @@ def dsi_deconv_voxels():
             for iz in range(2):
                 data[ix, iy, iz], dirs = SticksAndBall(gtab,
                                                        d=0.0015,
-                                                       S0=100,
+                                                       S0=1.,
                                                        angles=[(0, 0),
                                                                (90, 0)],
                                                        fractions=[50, 50],

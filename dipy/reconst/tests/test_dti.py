@@ -52,6 +52,18 @@ def test_tensor_algebra():
         assert_almost_equal(np.linalg.norm(x), t_norm[i])
 
 
+def test_odf_with_zeros():
+    fdata, fbval, fbvec = get_data('small_25')
+    gtab = grad.gradient_table(fbval, fbvec)
+    data = nib.load(fdata).get_data()
+    dm = dti.TensorModel(gtab)
+    df = dm.fit(data)
+    df.evals[0, 0, 0] = np.array([0, 0, 0])
+    sphere = create_unit_sphere(4)
+    odf = df.odf(sphere)
+    npt.assert_equal(odf[0, 0, 0], np.zeros(sphere.vertices.shape[0]))
+
+
 def test_tensor_model():
     fdata, fbval, fbvec = get_data('small_25')
     data1 = nib.load(fdata).get_data()
@@ -706,3 +718,15 @@ def test_eig_from_lo_tri():
 
     lo_tri = lower_triangular(dmfit.quadratic_form)
     assert_array_almost_equal(dti.eig_from_lo_tri(lo_tri), dmfit.model_params)
+
+
+def test_min_signal_alone():
+    fdata, fbvals, fbvecs = get_data()
+    data = nib.load(fdata).get_data()
+    gtab = grad.gradient_table(fbvals, fbvecs)
+
+    idx = tuple(np.array(np.where(data == np.min(data)))[:-1, 0])
+    ten_model = dti.TensorModel(gtab)
+    fit_alone = ten_model.fit(data[idx])
+    fit_together = ten_model.fit(data)
+    npt.assert_equal(fit_together.model_params[idx], fit_alone.model_params)

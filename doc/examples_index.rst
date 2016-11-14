@@ -48,6 +48,7 @@ Denoising
 ~~~~~~~~~
 
 - :ref:`example_denoise_nlmeans`
+- :ref:`example_denoise_ascm`
 
 Reslice
 ~~~~~~~
@@ -208,6 +209,13 @@ Visualization (NEW)
 - :ref:`example_viz_slice`
 - :ref:`example_viz_bundles`
 - :ref:`example_viz_widgets`
+- :ref:`example_viz_surfaces`
+
+---------------
+Workflows (NEW)
+---------------
+- :ref:`example_workflow_creation`
+- :ref:`example_combined_workflow_creation`
 
 .. In order to build the examples, you'll need (on Debian)
     sudo apt-get install python-tables python-matplotib python-vtk
