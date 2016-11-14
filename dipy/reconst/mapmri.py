@@ -170,13 +170,14 @@ class MapmriModel(ReconstModel):
             Q = np.dot(M.T, M) + self.lambd * I
             E = M
             c = -np.dot(M.T, data)
-
+            print(E.shape)
             A1 = np.hstack((Q, E.T))
-            A2 = np.hstack((E, np.zeros(E.shape[0])))
-
+            A2 = np.hstack((E, np.zeros((E.shape[0], E.shape[0]))))
+            print(c.shape, data.shape)
             A = np.vstack((A1, A2))
-            b = np.vstack((-c, data))
-            coef = solve(A, b)[:M.shape[0]]
+            b = np.hstack((-c, data))
+            coef = solve(A, b)[:c.shape[0]]
+            print(coef.shape, solve(A, b).shape, c.shape, data.shape)
 
         #     if not have_cvxopt:
         #         raise ValueError(

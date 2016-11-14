@@ -27,7 +27,7 @@ def test_mapmri_odf():
     data, golden_directions = MultiTensor(
         gtab, evals, S0=1.0, angles=[(0, 0), (90, 0)], fractions=[50, 50],
         snr=None)
-    map_model = MapmriModel(gtab, radial_order=4)
+    map_model = MapmriModel(gtab, radial_order=4, eap_cons=True)
     # symmetric724
     mapfit = map_model.fit(data)
     odf = mapfit.odf(sphere)
@@ -60,7 +60,7 @@ def test_multivox_mapmri():
 
     data = np.random.random([20, 30, 1, gtab.gradients.shape[0]])
     radial_order = 4
-    map_model = MapmriModel(gtab, radial_order=radial_order)
+    map_model = MapmriModel(gtab, radial_order=radial_order, eap_cons=True)
     mapfit = map_model.fit(data)
     c_map = mapfit.mapmri_coeff
     assert_equal(c_map.shape[0:3], data.shape[0:3])

@@ -38,7 +38,7 @@ def test_mapmri_metrics():
 
     # test MAPMRI fitting
 
-    mapm = MapmriModel(gtab, radial_order=radial_order, lambd=lambd)
+    mapm = MapmriModel(gtab, radial_order=radial_order, lambd=lambd, eap_cons=True)
     mapfit = mapm.fit(S)
     c_map = mapfit.mapmri_coeff
 
